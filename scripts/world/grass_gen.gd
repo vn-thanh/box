@@ -1,5 +1,6 @@
 class_name GrassGen
 ## Sinh cụm cỏ lúa đung đưa theo gió, phong cách Ghibli
+## Tránh vùng nước
 
 
 static func spawn_clump(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
@@ -32,13 +33,7 @@ static func spawn_clump(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator
 	SwayAnim.sway(clump, rng.randf_range(0.8, 1.5), rng.randf_range(0.03, 0.06), rng)
 
 
-static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator) -> void:
+static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator, water_areas: Array = []) -> void:
 	for i in count:
-		var pos := _random_pos(world_size, rng)
+		var pos := WaterGen.safe_pos(world_size, rng, water_areas, 1.0)
 		spawn_clump(parent, pos, rng)
-
-
-static func _random_pos(world_size: float, rng: RandomNumberGenerator) -> Vector3:
-	var x := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	var z := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	return Vector3(x, 0, z)

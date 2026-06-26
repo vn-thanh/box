@@ -1,5 +1,6 @@
 class_name TreeGen
 ## Sinh cây cổ thụ blocky phong cách Ghibli
+## Cây mọc thành cụm rừng, tránh vùng nước
 
 
 const LEAF_COLORS := [
@@ -57,16 +58,46 @@ static func spawn(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> v
 	SwayAnim.sway_tree(tree, rng.randf_range(1.5, 3.0), rng.randf_range(0.01, 0.03), rng)
 
 
-static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator) -> void:
-	for i in count:
-		var pos := _random_pos(world_size, rng)
+## Sinh cây rải rác + cụm rừng, tránh vùng nước
+static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator, water_areas: Array = []) -> void:
+	var spawned: int = 0
+	var max_attempts: int = count * 5
+
+	# ~60% cây mọc thành cụm rừng, ~40% rải rác
+	var cluster_count := maxi(2, count / 6)
+	var scattered_count := count - cluster_count * 4
+
+	# Sinh cụm rừng — mỗi cluster có 4-6 cây gần nhau
+	for _c in cluster_count:
+		if spawned >= count:
+			break
+		var cluster_pos := WaterGen.safe_pos(world_size, rng, water_areas, 5.0)
+		var trees_in_cluster := rng.randi_range(4, 6)
+		for _t in trees_in_cluster:
+			if spawned >= count:
+				break
+			# Cây trong cluster cách nhau 2-5 units
+			var offset := Vector3(rng.randf_range(-5.0, 5.0), 0, rng.randf_range(-5.0, 5.0))
+			var pos := cluster_pos + offset
+			if _is_safe(pos, world_size, water_areas):
+				spawn(parent, pos, rng)
+				spawned += 1
+
+	# Sinh cây rải rác
+	for _s in scattered_count:
+		if spawned >= count:
+			break
+		var pos := WaterGen.safe_pos(world_size, rng, water_areas, 3.0)
 		# Tránh spawn quá gần center (nơi player start)
 		if pos.length() < 5.0:
 			pos = pos.normalized() * 5.0
 		spawn(parent, pos, rng)
+		spawned += 1
 
 
-static func _random_pos(world_size: float, rng: RandomNumberGenerator) -> Vector3:
-	var x := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	var z := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	return Vector3(x, 0, z)
+static func _is_safe(pos: Vector3, world_size: float, water_areas: Array) -> bool:
+	if pos.length() < 5.0:
+		return false
+	if WaterGen.is_in_water(pos, water_areas, 2.0):
+		return false
+	return true

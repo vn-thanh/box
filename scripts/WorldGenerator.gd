@@ -1,8 +1,9 @@
 extends Node3D
 class_name WorldGenerator
 
-## Sinh môi trường phong cách Ghibli: đồng cỏ, cây cổ thụ, hoa dại, đá, ao nước
+## Sinh môi trường phong cách Ghibli: hồ/sông, cây rừng, hoa, cỏ, đá
 ## Coordinator mỏng — ủy thác cho các generator riêng trong scripts/world/
+## Sinh nước trước, truyền vùng nước cho generators khác để tránh
 
 @export var world_size: float = 80.0
 @export var tree_count: int = 40
@@ -10,9 +11,11 @@ class_name WorldGenerator
 @export var grass_clump_count: int = 200
 @export var rock_count: int = 25
 @export var pond_count: int = 3
+@export var river_count: int = 1
 @export var seed: int = 42
 
 var _rng := RandomNumberGenerator.new()
+var _water_areas: Array = []
 
 
 func _ready() -> void:
@@ -21,8 +24,10 @@ func _ready() -> void:
 
 
 func _generate_all() -> void:
-	PondGen.generate(self, pond_count, world_size, _rng)
-	GrassGen.generate(self, grass_clump_count, world_size, _rng)
-	FlowerGen.generate(self, flower_count, world_size, _rng)
-	RockGen.generate(self, rock_count, world_size, _rng)
-	TreeGen.generate(self, tree_count, world_size, _rng)
+	# Sinh nước trước — trả về vùng nước để generators khác tránh
+	_water_areas = WaterGen.generate(self, pond_count, river_count, world_size, _rng)
+	# Sau đó sinh còn lại, truyền water_areas
+	GrassGen.generate(self, grass_clump_count, world_size, _rng, _water_areas)
+	FlowerGen.generate(self, flower_count, world_size, _rng, _water_areas)
+	RockGen.generate(self, rock_count, world_size, _rng, _water_areas)
+	TreeGen.generate(self, tree_count, world_size, _rng, _water_areas)

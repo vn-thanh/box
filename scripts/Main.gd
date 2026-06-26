@@ -19,7 +19,7 @@ var _hovered_npc: NPC3D = null
 var _selected_npc: NPC3D = null
 var _portrait_npc: NPC3D = null  # clone currently shown in portrait
 
-const NPC_COUNT: int = 15
+const NPC_COUNT: int = 8
 
 # World config — nhận từ MainMenu hoặc mặc định
 var world_name: String = "World"

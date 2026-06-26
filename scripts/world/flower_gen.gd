@@ -1,5 +1,6 @@
 class_name FlowerGen
 ## Sinh hoa dại phong cách Ghibli
+## Tránh vùng nước
 
 
 const FLOWER_COLORS := [
@@ -58,14 +59,8 @@ static func spawn(parent: Node3D, pos: Vector3, color: Color, rng: RandomNumberG
 	SwayAnim.sway(flower, rng.randf_range(1.0, 2.0), rng.randf_range(0.02, 0.04), rng)
 
 
-static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator) -> void:
+static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator, water_areas: Array = []) -> void:
 	for i in count:
-		var pos := _random_pos(world_size, rng)
+		var pos := WaterGen.safe_pos(world_size, rng, water_areas, 1.0)
 		var color: Color = FLOWER_COLORS[rng.randi_range(0, FLOWER_COLORS.size() - 1)]
 		spawn(parent, pos, color, rng)
-
-
-static func _random_pos(world_size: float, rng: RandomNumberGenerator) -> Vector3:
-	var x := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	var z := rng.randf_range(-world_size / 2.0, world_size / 2.0)
-	return Vector3(x, 0, z)
