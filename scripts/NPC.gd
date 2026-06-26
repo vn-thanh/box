@@ -40,6 +40,7 @@ var _name_label: Label3D
 
 # --- Animation ---
 var _walk_phase: float = 0.0
+var _walk_amp: float = 0.0
 var _is_moving: bool = false
 var _face_angle: float = 0.0
 var _idle_offset: float = 0.0
@@ -364,11 +365,12 @@ func _update_visuals(delta: float) -> void:
 
 	if _is_moving:
 		_walk_phase += delta * 10.0
+		_walk_amp = lerpf(_walk_amp, 1.0, 0.1)
 	else:
-		_walk_phase = lerpf(_walk_phase, 0.0, 0.15)
+		_walk_amp = lerpf(_walk_amp, 0.0, 0.08)
 
-	var swing := sin(_walk_phase) * 0.5
-	var swing2 := sin(_walk_phase + PI) * 0.5
+	var swing := sin(_walk_phase) * 0.5 * _walk_amp
+	var swing2 := sin(_walk_phase + PI) * 0.5 * _walk_amp
 
 	if bone_leg_l:
 		bone_leg_l.rotation.x = swing
@@ -383,7 +385,7 @@ func _update_visuals(delta: float) -> void:
 	if bone_torso:
 		var bob: float = 0.0
 		if _is_moving:
-			bob = abs(sin(_walk_phase)) * 0.05
+			bob = abs(sin(_walk_phase)) * 0.05 * _walk_amp
 		else:
 			bob = sin(Time.get_ticks_msec() * 0.002 + _idle_offset) * 0.01
 		bone_torso.position.y = lerpf(bone_torso.position.y, bob, 0.2)
