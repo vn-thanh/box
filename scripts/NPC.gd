@@ -3,6 +3,12 @@ class_name NPC3D
 
 @export var world_bounds: float = 35.0
 
+# --- Character identity ---
+var npc_name: String = ""
+var age: int = 25
+var gender: String = "male"
+var body_scale: float = 1.0
+
 # --- Humanoid skeleton ---
 var skeleton: Node3D
 var bone_hips: Node3D
@@ -12,6 +18,7 @@ var bone_arm_l: Node3D
 var bone_arm_r: Node3D
 var bone_leg_l: Node3D
 var bone_leg_r: Node3D
+var _name_label: Label3D
 
 # --- Animation ---
 var _walk_phase: float = 0.0
@@ -24,11 +31,43 @@ var _wander_timer: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
 var _speed: float = 2.0
 
+# --- Name pools ---
+const SURNAMES := ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Wilson", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White", "Harris", "Clark", "Lewis", "Walker", "Hall", "Allen", "Young", "King", "Wright", "Hill"]
+const MALE_NAMES := ["James", "John", "Robert", "Michael", "William", "David", "Joseph", "Charles", "Thomas", "Daniel", "Matthew", "Andrew", "Christopher", "Anthony", "Mark", "Steven", "Paul", "Andrew", "Joshua", "Kenneth", "Kevin", "Brian", "George", "Edward", "Ronald", "Timothy", "Jason", "Jeffrey", "Ryan"]
+const FEMALE_NAMES := ["Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen", "Lisa", "Nancy", "Betty", "Margaret", "Sandra", "Ashley", "Dorothy", "Kimberly", "Emily", "Donna", "Michelle", "Carol", "Amanda", "Melissa", "Deborah", "Stephanie", "Rebecca", "Laura", "Sharon"]
+
 
 func _ready() -> void:
 	_idle_offset = randf() * TAU
+	_generate_identity()
 	_build_skeleton()
+	_add_name_label()
+	_adjust_collision()
 	_pick_new_wander()
+
+
+func _generate_identity() -> void:
+	gender = "male" if randf() < 0.5 else "female"
+	age = randi_range(5, 85)
+	if gender == "male":
+		npc_name = SURNAMES[randi() % SURNAMES.size()] + " " + MALE_NAMES[randi() % MALE_NAMES.size()]
+	else:
+		npc_name = SURNAMES[randi() % SURNAMES.size()] + " " + FEMALE_NAMES[randi() % FEMALE_NAMES.size()]
+
+
+func _age_to_scale(age_val: float) -> float:
+	if age_val <= 3:
+		return lerpf(0.35, 0.45, age_val / 3.0)
+	elif age_val <= 12:
+		return lerpf(0.45, 0.75, (age_val - 3) / 9.0)
+	elif age_val <= 17:
+		return lerpf(0.75, 0.98, (age_val - 12) / 5.0)
+	elif age_val <= 60:
+		return 1.0
+	elif age_val <= 80:
+		return lerpf(1.0, 0.92, (age_val - 60) / 20.0)
+	else:
+		return lerpf(0.92, 0.85, clampf((age_val - 80) / 20.0, 0, 1))
 
 
 func _build_skeleton() -> void:
@@ -36,21 +75,47 @@ func _build_skeleton() -> void:
 	skeleton.name = "Skeleton"
 	add_child(skeleton)
 
+	# Age + gender scale
+	var gender_scale := 1.0 if gender == "male" else 0.93
+	body_scale = _age_to_scale(age) * gender_scale
+	skeleton.scale = Vector3.ONE * body_scale
+
+	# Females có vai hẹp hơn
+	var shoulder_factor := 1.0 if gender == "male" else 0.88
+
 	# Random palette
 	var shirt_colors := [
-		Color(0.3, 0.55, 0.7),    # xanh dương
-		Color(0.7, 0.3, 0.3),     # đỏ
-		Color(0.3, 0.6, 0.35),    # xanh lá
-		Color(0.5, 0.35, 0.6),    # tím
-		Color(0.8, 0.6, 0.3),     # cam
-		Color(0.35, 0.35, 0.4),   # xám
+		Color(0.3, 0.55, 0.7),
+		Color(0.7, 0.3, 0.3),
+		Color(0.3, 0.6, 0.35),
+		Color(0.5, 0.35, 0.6),
+		Color(0.8, 0.6, 0.3),
+		Color(0.35, 0.35, 0.4),
 	]
+	# Nữ mặc màu nổi/hồng hơn
+	if gender == "female":
+		shirt_colors = [
+			Color(0.9, 0.4, 0.55),   # hồng
+			Color(0.85, 0.5, 0.7),   # hồng đậm
+			Color(0.7, 0.4, 0.8),    # tím
+			Color(0.5, 0.7, 0.9),    # xanh nhạt
+			Color(0.9, 0.7, 0.4),    # vàng đất
+			Color(0.6, 0.8, 0.5),    # xanh mint
+		]
 	var pants_colors := [
 		Color(0.2, 0.22, 0.3),
 		Color(0.25, 0.2, 0.15),
 		Color(0.3, 0.3, 0.32),
 		Color(0.15, 0.15, 0.18),
 	]
+	# Nữ mặc váy màu sáng hơn
+	if gender == "female":
+		pants_colors = [
+			Color(0.35, 0.3, 0.45),
+			Color(0.3, 0.25, 0.35),
+			Color(0.25, 0.3, 0.4),
+			Color(0.4, 0.35, 0.3),
+		]
 	var hair_colors := [
 		Color(0.25, 0.18, 0.12),
 		Color(0.15, 0.1, 0.08),
@@ -64,6 +129,10 @@ func _build_skeleton() -> void:
 		Color(0.7, 0.58, 0.45),
 		Color(0.9, 0.78, 0.65),
 	]
+
+	# Người già tóc bạc
+	if age > 65:
+		hair_colors = [Color(0.8, 0.8, 0.78), Color(0.7, 0.7, 0.68), Color(0.6, 0.6, 0.58)]
 
 	var skin_mat := StandardMaterial3D.new()
 	skin_mat.albedo_color = skin_colors[randi() % skin_colors.size()]
@@ -91,7 +160,12 @@ func _build_skeleton() -> void:
 	bone_torso = Node3D.new()
 	bone_torso.name = "Torso"
 	bone_hips.add_child(bone_torso)
-	_add_box(bone_torso, Vector3(0.45, 0.55, 0.28), Vector3(0, 0.3, 0), cloth_mat)
+	_add_box(bone_torso, Vector3(0.45 * shoulder_factor, 0.55, 0.28), Vector3(0, 0.3, 0), cloth_mat)
+
+	# Người già còng lưng
+	if age > 60:
+		var lean := clampf((age - 60) / 25.0, 0, 1) * 0.18
+		bone_torso.rotation.x = lean
 
 	# Head
 	bone_head = Node3D.new()
@@ -101,16 +175,20 @@ func _build_skeleton() -> void:
 	_add_box(bone_head, Vector3(0.3, 0.32, 0.3), Vector3.ZERO, skin_mat)
 	_add_box(bone_head, Vector3(0.34, 0.18, 0.34), Vector3(0, 0.22, -0.02), hair_mat)
 
+	# Nữ có tóc dài phía sau đầu (-Z là phía sau khi rotation.y = 0)
+	if gender == "female":
+		_add_box(bone_head, Vector3(0.36, 0.55, 0.08), Vector3(0, -0.1, -0.18), hair_mat)
+
 	# Arms
 	bone_arm_l = Node3D.new()
 	bone_arm_l.name = "ArmL"
-	bone_arm_l.position = Vector3(0.28, 0.55, 0)
+	bone_arm_l.position = Vector3(0.28 * shoulder_factor, 0.55, 0)
 	bone_torso.add_child(bone_arm_l)
 	_add_box(bone_arm_l, Vector3(0.12, 0.5, 0.12), Vector3(0, -0.25, 0), cloth_mat)
 
 	bone_arm_r = Node3D.new()
 	bone_arm_r.name = "ArmR"
-	bone_arm_r.position = Vector3(-0.28, 0.55, 0)
+	bone_arm_r.position = Vector3(-0.28 * shoulder_factor, 0.55, 0)
 	bone_torso.add_child(bone_arm_r)
 	_add_box(bone_arm_r, Vector3(0.12, 0.5, 0.12), Vector3(0, -0.25, 0), cloth_mat)
 
@@ -126,6 +204,37 @@ func _build_skeleton() -> void:
 	bone_leg_r.position = Vector3(-0.12, -0.05, 0)
 	bone_hips.add_child(bone_leg_r)
 	_add_box(bone_leg_r, Vector3(0.14, 0.7, 0.14), Vector3(0, -0.35, 0), pants_mat)
+
+	# Nữ mặc váy — box rộng ở hông kéo xuống giữa đùi
+	if gender == "female":
+		_add_box(bone_hips, Vector3(0.52 * shoulder_factor, 0.5, 0.32), Vector3(0, -0.15, 0), pants_mat)
+
+
+func _add_name_label() -> void:
+	_name_label = Label3D.new()
+	_name_label.text = "%s (%d)" % [npc_name, age]
+	_name_label.font_size = 42
+	_name_label.outline_size = 10
+	_name_label.outline_modulate = Color(0, 0, 0, 0.85)
+	# Nữ label hồng, nam label vàng nhạt
+	if gender == "female":
+		_name_label.modulate = Color(1.0, 0.5, 0.65, 1)
+	else:
+		_name_label.modulate = Color(0.8, 0.9, 1.0, 1)
+	_name_label.pixel_size = 0.012
+	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_label.no_depth_test = true
+	_name_label.position = Vector3(0, body_scale * 2.5 + 0.2, 0)
+	add_child(_name_label)
+
+
+func _adjust_collision() -> void:
+	var col := $CollisionShape3D as CollisionShape3D
+	if col and col.shape is CapsuleShape3D:
+		var cap := col.shape as CapsuleShape3D
+		cap.radius = 0.35 * body_scale
+		cap.height = 1.7 * body_scale
+		col.position.y = 0.85 * body_scale
 
 
 func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void:
@@ -168,7 +277,13 @@ func _pick_new_wander() -> void:
 		_is_moving = true
 		var angle := randf() * TAU
 		_wander_dir = Vector3(cos(angle), 0, sin(angle))
-		_speed = randf_range(1.5, 3.5)
+		# Người già và trẻ nhỏ đi chậm hơn
+		var speed_mod := 1.0
+		if age < 10:
+			speed_mod = 0.6
+		elif age > 65:
+			speed_mod = 0.65
+		_speed = randf_range(1.5, 3.5) * speed_mod
 		_wander_timer = randf_range(2.0, 6.0)
 	else:
 		_is_moving = false
@@ -177,6 +292,7 @@ func _pick_new_wander() -> void:
 
 func _update_face(delta: float) -> void:
 	if velocity.length_squared() > 0.1:
+		# Model forward là +Z, atan2(x, z) cho góc đúng
 		var target := atan2(velocity.x, velocity.z)
 		var diff := angle_difference(_face_angle, target)
 		_face_angle += diff * 0.1
