@@ -3,6 +3,24 @@ class_name NPC3D
 
 @export var world_bounds: float = 35.0
 
+# --- Focus state (set by Main via raycast) ---
+var hovered: bool = false:
+	set(v):
+		if hovered != v:
+			hovered = v
+			_update_focus_visual()
+var selected: bool = false:
+	set(v):
+		if selected != v:
+			selected = v
+			_update_focus_visual()
+
+# All mesh instances for outline/emissive toggle
+var _meshes: Array[MeshInstance3D] = []
+
+# --- Portrait mode (used by info panel SubViewport) ---
+var preview: bool = false
+
 # --- Character identity ---
 var npc_name: String = ""
 var age: int = 25
@@ -42,8 +60,9 @@ func _ready() -> void:
 	_generate_identity()
 	_build_skeleton()
 	_add_name_label()
-	_adjust_collision()
-	_pick_new_wander()
+	if not preview:
+		_adjust_collision()
+		_pick_new_wander()
 
 
 func _generate_identity() -> void:
@@ -228,7 +247,41 @@ func _add_name_label() -> void:
 	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_label.no_depth_test = true
 	_name_label.position = Vector3(0, body_scale * 2.5 + 0.2, 0)
-	add_child(_name_label)
+	# Ẩn mặc định — chỉ hiện khi hover/select
+	# Portrait mode: không cần label
+	if preview:
+		_name_label.queue_free()
+		_name_label = null
+	else:
+		_name_label.visible = false
+		add_child(_name_label)
+
+
+func _update_focus_visual() -> void:
+	var focused: bool = hovered or selected
+	if _name_label:
+		_name_label.visible = focused
+		if selected:
+			_name_label.modulate = Color(1.2, 1.1, 0.5, 1)
+		elif hovered:
+			if gender == "female":
+				_name_label.modulate = Color(1.0, 0.5, 0.65, 1)
+			else:
+				_name_label.modulate = Color(0.8, 0.9, 1.0, 1)
+	for mi in _meshes:
+		var mat := mi.material_override as StandardMaterial3D
+		if mat:
+			if focused:
+				mat.emission_enabled = true
+				if selected:
+					mat.emission = Color(1.0, 0.85, 0.3)
+					mat.emission_energy_multiplier = 0.6
+				else:
+					mat.emission = Color(0.5, 0.7, 1.0)
+					mat.emission_energy_multiplier = 0.35
+			else:
+				mat.emission_enabled = false
+				mat.emission_energy_multiplier = 0.0
 
 
 func _adjust_collision() -> void:
@@ -248,9 +301,13 @@ func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> voi
 	mi.position = pos
 	mi.material_override = mat
 	parent.add_child(mi)
+	_meshes.append(mi)
 
 
 func _physics_process(delta: float) -> void:
+	if preview:
+		_update_visuals(delta)
+		return
 	_wander_timer -= delta
 	if _wander_timer <= 0:
 		_pick_new_wander()

@@ -7,6 +7,17 @@ var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
 @onready var world_gen: WorldGenerator = $WorldGenerator
 @onready var env: Environment = $WorldEnvironment.environment
 @onready var sun: DirectionalLight3D = $DirectionalLight3D
+@onready var info_panel: Panel = $CanvasLayer/InfoPanel
+@onready var info_name: Label = $CanvasLayer/InfoPanel/VBox/NameLabel
+@onready var info_age: Label = $CanvasLayer/InfoPanel/VBox/AgeLabel
+@onready var info_gender: Label = $CanvasLayer/InfoPanel/VBox/GenderLabel
+@onready var portrait_vp: SubViewport = $CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP
+@onready var portrait_cam: Camera3D = $CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP/Cam
+
+# Hover/selected NPC state
+var _hovered_npc: NPC3D = null
+var _selected_npc: NPC3D = null
+var _portrait_npc: NPC3D = null  # clone currently shown in portrait
 
 const NPC_COUNT: int = 15
 
@@ -135,8 +146,101 @@ func _process(delta: float) -> void:
 	camera.global_position = cam_target_smooth + _cam_offset
 	camera.look_at(cam_target_smooth, Vector3.UP)
 
+	# Hover detection via mouse raycast
+	_update_hover()
+
+
+func _update_hover() -> void:
+	var mouse_pos := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var dir := camera.project_ray_normal(mouse_pos)
+	var closest_npc: NPC3D = null
+	var closest_dist: float = INF
+	for child in get_children():
+		if child is NPC3D:
+			var npc := child as NPC3D
+			# Approximate NPC as sphere at chest height
+			var center := npc.global_position + Vector3(0, 0.85 * npc.body_scale, 0)
+			var radius := 0.6 * npc.body_scale
+			var oc := from - center
+			var b := oc.dot(dir)
+			var c := oc.dot(oc) - radius * radius
+			var h := b * b - c
+			if h > 0.0:
+				var t := -b - sqrt(h)
+				if t < closest_dist and t > 0.0:
+					closest_dist = t
+					closest_npc = npc
+	if closest_npc != _hovered_npc:
+		if _hovered_npc:
+			_hovered_npc.hovered = false
+		_hovered_npc = closest_npc
+		if _hovered_npc:
+			_hovered_npc.hovered = true
+			# Only auto-show panel on hover if nothing selected
+			if not _selected_npc:
+				_show_npc_info(_hovered_npc)
+	elif _selected_npc == null and closest_npc == null:
+		_hide_npc_info()
+
+
+func _show_npc_info(npc: NPC3D) -> void:
+	info_name.text = npc.npc_name
+	info_age.text = "Tuổi: %d" % npc.age
+	var g_text := "Nữ" if npc.gender == "female" else "Nam"
+	info_gender.text = "Giới tính: %s" % g_text
+	_swap_portrait(npc)
+	info_panel.visible = true
+
+
+func _hide_npc_info() -> void:
+	info_panel.visible = false
+	_clear_portrait()
+
+
+func _swap_portrait(npc: NPC3D) -> void:
+	# Nếu đã là cùng NPC thì skip
+	if _portrait_npc and _portrait_npc.npc_name == npc.npc_name \
+			and _portrait_npc.age == npc.age and _portrait_npc.gender == npc.gender:
+		return
+	_clear_portrait()
+	# Spawn clone với identity của NPC gốc
+	var clone := npc_scene.instantiate() as NPC3D
+	clone.preview = true
+	clone.npc_name = npc.npc_name
+	clone.age = npc.age
+	clone.gender = npc.gender
+	portrait_vp.add_child(clone)
+	clone.global_position = Vector3.ZERO
+	# Camera nhìn thẳng mặt: NPC forward là +Z, camera ở +Z nhìn về -Z
+	portrait_cam.global_position = Vector3(0, 1.0, 3.5)
+	portrait_cam.look_at(Vector3(0, 1.0, 0), Vector3.UP)
+	_portrait_npc = clone
+
+
+func _clear_portrait() -> void:
+	if _portrait_npc:
+		_portrait_npc.queue_free()
+		_portrait_npc = null
+
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Click to select NPC (left button)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if _hovered_npc:
+			# Deselect previous
+			if _selected_npc:
+				_selected_npc.selected = false
+			_selected_npc = _hovered_npc
+			_selected_npc.selected = true
+			_show_npc_info(_selected_npc)
+		else:
+			# Click empty space → deselect
+			if _selected_npc:
+				_selected_npc.selected = false
+				_selected_npc = null
+			_hide_npc_info()
+
 	# Scroll wheel zoom
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
