@@ -5,6 +5,8 @@ var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
 @onready var camera: Camera3D = $Camera3D
 @onready var ground_mesh: MeshInstance3D = $Ground/GroundMesh
 @onready var world_gen: WorldGenerator = $WorldGenerator
+@onready var env: Environment = $WorldEnvironment.environment
+@onready var sun: DirectionalLight3D = $DirectionalLight3D
 
 const NPC_COUNT: int = 15
 
@@ -111,6 +113,23 @@ func _process(delta: float) -> void:
 	# Smooth zoom
 	zoom_current = lerpf(zoom_current, zoom, ZOOM_SMOOTH * delta)
 	camera.size = CAM_BASE_SIZE * zoom_current
+
+	# Fog density tỷ lệ nghịch với zoom — zoom out = fog mỏng hơn để nhìn xa
+	# zoom 0.4 (close) → density 0.02, zoom 2.5 (far) → density 0.004
+	if env:
+		var fog_factor := remap(zoom_current, ZOOM_MIN, ZOOM_MAX, 0.02, 0.004)
+		env.fog_density = lerpf(env.fog_density, fog_factor, CAM_SMOOTH * delta)
+
+	# Shadow distance scale theo zoom — đảm bảo toàn bộ vùng nhìn thấy đều có bóng
+	# Orthographic camera: viewport width ≈ camera.size, diagonal ≈ size * 1.4
+	# shadow distance cần >= diagonal để phủ hết màn hình
+	if sun:
+		var view_extent: float = camera.size * 1.5
+		sun.directional_shadow_max_distance = lerpf(
+			sun.directional_shadow_max_distance,
+			view_extent,
+			CAM_SMOOTH * delta
+		)
 
 	# Position camera at isometric angle, look at target
 	camera.global_position = cam_target_smooth + _cam_offset
