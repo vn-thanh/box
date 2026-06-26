@@ -47,6 +47,9 @@ func _ready() -> void:
 
 
 func _generate_identity() -> void:
+	# Chỉ generate nếu chưa được set (khi load game, identity được set trước add_child)
+	if not npc_name.is_empty():
+		return
 	gender = "male" if randf() < 0.5 else "female"
 	age = randi_range(5, 85)
 	if gender == "male":

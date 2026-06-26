@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="box"
-run/main_scene="res://scenes/Main.tscn"
+run/main_scene="res://scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+SaveSystem="*res://scripts/SaveSystem.gd"
 
 [display]
 

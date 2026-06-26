@@ -4,8 +4,15 @@ var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
 
 @onready var camera: Camera3D = $Camera3D
 @onready var ground_mesh: MeshInstance3D = $Ground/GroundMesh
+@onready var world_gen: WorldGenerator = $WorldGenerator
 
 const NPC_COUNT: int = 15
+
+# World config — nhận từ MainMenu hoặc mặc định
+var world_name: String = "World"
+var world_size: float = 80.0
+var _is_loaded_game: bool = false
+var _load_data: Dictionary = {}
 
 # Camera control — WASD pans, scroll zooms
 var cam_target: Vector3 = Vector3.ZERO
@@ -27,19 +34,65 @@ var _cam_offset: Vector3 = Vector3(1, 1, 1).normalized() * 25.0
 
 
 func _ready() -> void:
+	# Đọc meta từ MainMenu (new game hoặc load)
+	var tree := get_tree()
+	if tree.has_meta("new_game_meta"):
+		var meta: Dictionary = tree.get_meta("new_game_meta")
+		world_name = meta.get("world_name", "World")
+		world_size = float(meta.get("world_size", 80.0))
+		tree.remove_meta("new_game_meta")
+	elif tree.has_meta("load_game_data"):
+		_load_data = tree.get_meta("load_game_data")
+		world_name = _load_data.get("world_name", "World")
+		world_size = float(_load_data.get("world_size", 80.0))
+		_is_loaded_game = true
+		tree.remove_meta("load_game_data")
+
+	# Áp dụng world_size cho WorldGenerator
+	if world_gen:
+		world_gen.world_size = world_size
+		# Scale ground mesh theo world_size
+		var ground_scale := world_size / 80.0
+		ground_mesh.scale = Vector3(ground_scale, 1, ground_scale)
+
 	# Ground màu cỏ
 	var ground_mat := StandardMaterial3D.new()
 	ground_mat.albedo_color = Color(0.42, 0.55, 0.28)
 	ground_mat.roughness = 1.0
 	ground_mesh.material_override = ground_mat
 
-	# Spawn NPCs at random positions
+	if _is_loaded_game:
+		_load_npcs()
+	else:
+		_spawn_npcs()
+
+
+func _spawn_npcs() -> void:
 	for i in NPC_COUNT:
 		var npc := npc_scene.instantiate() as NPC3D
 		add_child(npc)
 		var angle := randf() * TAU
-		var dist := randf_range(5.0, 30.0)
+		var dist := randf_range(5.0, world_size * 0.4)
 		npc.global_position = Vector3(cos(angle) * dist, 0, sin(angle) * dist)
+		npc.world_bounds = world_size * 0.45
+
+
+func _load_npcs() -> void:
+	var npcs: Array = _load_data.get("npcs", [])
+	for npc_data in npcs:
+		var npc := npc_scene.instantiate() as NPC3D
+		# Set identity TRƯỚC khi add_child để _ready() không ghi đè
+		npc.npc_name = npc_data.get("name", "")
+		npc.age = int(npc_data.get("age", 25))
+		npc.gender = npc_data.get("gender", "male")
+		add_child(npc)
+		# Khôi phục vị trí (sau add_child để global_position hoạt động)
+		npc.global_position = Vector3(
+			float(npc_data.get("pos_x", 0.0)),
+			0,
+			float(npc_data.get("pos_z", 0.0))
+		)
+		npc.world_bounds = world_size * 0.45
 
 
 func _process(delta: float) -> void:
@@ -71,3 +124,34 @@ func _unhandled_input(event: InputEvent) -> void:
 			zoom = clampf(zoom - ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom = clampf(zoom + ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX)
+
+	# ESC → quay lại main menu
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_save_and_quit_to_menu()
+
+	# F5 → quick save
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F5:
+		_save_current_game()
+
+
+func _save_current_game() -> void:
+	var npc_data: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			npc_data.append({
+				"name": child.npc_name,
+				"age": child.age,
+				"gender": child.gender,
+				"pos_x": child.global_position.x,
+				"pos_z": child.global_position.z,
+			})
+	var ok := SaveSystem.save_game(world_name, world_size, npc_data)
+	if ok:
+		print("[Save] Saved world '%s' (%d NPCs)" % [world_name, npc_data.size()])
+	else:
+		push_error("[Save] Failed to save world '%s'" % world_name)
+
+
+func _save_and_quit_to_menu() -> void:
+	_save_current_game()
+	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
