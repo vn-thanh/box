@@ -67,6 +67,8 @@ func _ready() -> void:
 		# Scale ground mesh theo world_size
 		var ground_scale := world_size / 80.0
 		ground_mesh.scale = Vector3(ground_scale, 1, ground_scale)
+		# Generate world SAU khi set world_size
+		world_gen.generate()
 
 	# Ground màu cỏ
 	var ground_mat := StandardMaterial3D.new()

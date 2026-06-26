@@ -16,14 +16,19 @@ class_name WorldGenerator
 
 var _rng := RandomNumberGenerator.new()
 var _water_areas: Array = []
+var _generated: bool = false
 
 
 func _ready() -> void:
 	_rng.seed = seed
-	_generate_all()
+	# Không tự generate ở đây — đợi Main gọi generate() sau khi set world_size
 
 
-func _generate_all() -> void:
+## Main gọi hàm này sau khi set world_size từ menu
+func generate() -> void:
+	if _generated:
+		return
+	_generated = true
 	# Sinh nước trước — trả về vùng nước để generators khác tránh
 	_water_areas = WaterGen.generate(self, pond_count, river_count, world_size, _rng)
 	# Sau đó sinh còn lại, truyền water_areas
