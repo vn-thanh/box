@@ -10,6 +10,8 @@ class_name WorldGenerator
 @export var flower_count: int = 120
 @export var grass_clump_count: int = 200
 @export var rock_count: int = 25
+@export var bird_count: int = 6
+@export var rabbit_count: int = 8
 @export var pond_count: int = 3
 @export var river_count: int = 1
 @export var seed: int = 42
@@ -36,3 +38,5 @@ func generate() -> void:
 	FlowerGen.generate(self, flower_count, world_size, _rng, _water_areas)
 	RockGen.generate(self, rock_count, world_size, _rng, _water_areas)
 	TreeGen.generate(self, tree_count, world_size, _rng, _water_areas)
+	# Động vật — chim bay + thỏ chạy dưới đất
+	AnimalGen.generate(self, bird_count, rabbit_count, world_size, _rng, _water_areas)
