@@ -10,6 +10,9 @@ enum Type { SAWMILL, CHURCH, HOSPITAL, SCHOOL, HOUSE, ROAD }
 @export var building_type: Type = Type.SAWMILL
 @export var job_slots: int = 2
 
+# Khi true, không hiện Label3D tên công trình (dùng cho thumbnail)
+var show_label: bool = true
+
 # NPC đang làm việc ở đây
 var workers: Array[NPC3D] = []
 
@@ -221,6 +224,8 @@ func _build_shell(w: float, h: float, d: float, wall_mat: Material, roof_mat: Ma
 
 func _add_label() -> void:
 	if building_type == Type.HOUSE or building_type == Type.ROAD:
+		return
+	if not show_label:
 		return
 	_label = Label3D.new()
 	_label.text = _type_name() + " 0/%d" % job_slots

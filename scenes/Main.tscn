@@ -155,71 +155,8 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Nghề: Thất nghiệp"
 
-[node name="BuildToolbar" type="Panel" parent="CanvasLayer"]
+[node name="BuildToolbar" type="Control" parent="CanvasLayer"]
 visible = false
-offset_left = 16.0
-offset_top = 186.0
-offset_right = 316.0
-offset_bottom = 380.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_1")
-
-[node name="TitleLabel" type="Label" parent="CanvasLayer/BuildToolbar"]
-offset_left = 8.0
-offset_top = 6.0
-offset_right = 292.0
-offset_bottom = 26.0
-theme_override_font_sizes/font_size = 14
-text = "Chọn công trình để xây"
-
-[node name="BtnScroll" type="ScrollContainer" parent="CanvasLayer/BuildToolbar"]
-offset_left = 8.0
-offset_top = 30.0
-offset_right = 292.0
-offset_bottom = 140.0
-
-[node name="BtnVBox" type="VBoxContainer" parent="CanvasLayer/BuildToolbar/BtnScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="BtnSawmill" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "🪵 Xưởng gỗ (2 thợ)"
-
-[node name="BtnChurch" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "⛪ Nhà thờ (1 linh mục)"
-
-[node name="BtnHospital" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "🏥 Bệnh viện (3 bác sĩ)"
-
-[node name="BtnSchool" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "🏫 Trường học (2 giáo viên)"
-
-[node name="BtnHouse" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "🏠 Nhà ở"
-
-[node name="BtnRoad" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
-layout_mode = 2
-text = "🛤️ Đường"
-
-[node name="CancelBtn" type="Button" parent="CanvasLayer/BuildToolbar"]
-offset_left = 8.0
-offset_top = 148.0
-offset_right = 292.0
-offset_bottom = 172.0
-text = "Hủy (ESC)"
-
-[node name="BuildHint" type="Label" parent="CanvasLayer/BuildToolbar"]
-offset_left = 8.0
-offset_top = 176.0
-offset_right = 292.0
-offset_bottom = 200.0
-theme_override_font_sizes/font_size = 12
-text = "Click để đặt • Xanh=OK, Đỏ=không"
 
 [node name="BuildingInfoPanel" type="Panel" parent="CanvasLayer"]
 visible = false

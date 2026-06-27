@@ -15,15 +15,22 @@ var building_scene: PackedScene = preload("res://scenes/Building.tscn")
 @onready var portrait_vp: SubViewport = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP
 @onready var portrait_cam: Camera3D = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP/Cam
 
-# Build mode UI
-@onready var build_toolbar: Panel = $CanvasLayer/BuildToolbar
-@onready var btn_sawmill: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSawmill
-@onready var btn_church: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnChurch
-@onready var btn_hospital: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHospital
-@onready var btn_school: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSchool
-@onready var btn_house: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHouse
-@onready var btn_road: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnRoad
-@onready var cancel_btn: Button = $CanvasLayer/BuildToolbar/CancelBtn
+# Build mode UI (built in code)
+var _fab: Button
+var _build_grid: Control
+var _tooltip: Label
+var _build_cells: Array = []  # Array of Panel cells
+
+# Building definitions: type, name, price, job_slots
+const BUILD_DEFS: Array = [
+	{type = 0, name = "Xưởng gỗ", price = 100, jobs = 2},   # SAWMILL
+	{type = 1, name = "Nhà thờ", price = 200, jobs = 1},     # CHURCH
+	{type = 2, name = "Bệnh viện", price = 300, jobs = 3},   # HOSPITAL
+	{type = 3, name = "Trường học", price = 150, jobs = 2},  # SCHOOL
+	{type = 4, name = "Nhà ở", price = 80, jobs = 0},        # HOUSE
+	{type = 5, name = "Đường", price = 10, jobs = 0},        # ROAD
+]
+
 @onready var bld_info_panel: Panel = $CanvasLayer/BuildingInfoPanel
 @onready var bld_name_label: Label = $CanvasLayer/BuildingInfoPanel/BldNameLabel
 @onready var bld_slots_label: Label = $CanvasLayer/BuildingInfoPanel/BldSlotsLabel
@@ -111,14 +118,8 @@ func _ready() -> void:
 	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
 	PathfindingSystem.init_grid(world_size, water_areas, _buildings)
 
-	# Connect build toolbar buttons
-	btn_sawmill.pressed.connect(func(): _start_build(Building3D.Type.SAWMILL))
-	btn_church.pressed.connect(func(): _start_build(Building3D.Type.CHURCH))
-	btn_hospital.pressed.connect(func(): _start_build(Building3D.Type.HOSPITAL))
-	btn_school.pressed.connect(func(): _start_build(Building3D.Type.SCHOOL))
-	btn_house.pressed.connect(func(): _start_build(Building3D.Type.HOUSE))
-	btn_road.pressed.connect(func(): _start_build(Building3D.Type.ROAD))
-	cancel_btn.pressed.connect(_cancel_build)
+	# Build mode UI — built in code
+	_build_build_ui()
 
 
 func _spawn_npcs() -> void:
@@ -411,11 +412,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				_hide_npc_info()
 				bld_info_panel.visible = false
 
-	# B → toggle build toolbar
+	# B → toggle build grid
 	if event is InputEventKey and event.pressed and event.keycode == KEY_B:
-		build_toolbar.visible = not build_toolbar.visible
-		if not build_toolbar.visible:
-			_cancel_build()
+		_toggle_build_grid()
 
 	# A → auto-assign (debug/test)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_A:
@@ -442,6 +441,193 @@ func _unhandled_input(event: InputEvent) -> void:
 	# F5 → quick save
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F5:
 		_save_current_game()
+
+
+# --- Build mode UI ---
+
+const CELL_SIZE_UI := 90
+const GRID_COLS := 3
+const GRID_ROWS := 2
+const GRID_GAP := 8
+
+func _build_build_ui() -> void:
+	var screen := get_viewport().get_visible_rect().size
+	var canvas := $CanvasLayer
+
+	# FAB (floating action button) — góc dưới phải
+	_fab = Button.new()
+	_fab.text = "✚ Build"
+	_fab.add_theme_font_size_override("font_size", 18)
+	var fab_w := 100
+	var fab_h := 44
+	_fab.size = Vector2(fab_w, fab_h)
+	_fab.position = Vector2(screen.x - fab_w - 20, screen.y - fab_h - 20)
+	var fab_normal := StyleBoxFlat.new()
+	fab_normal.bg_color = Color(0.2, 0.5, 0.35, 0.95)
+	fab_normal.corner_radius_top_left = 22
+	fab_normal.corner_radius_top_right = 22
+	fab_normal.corner_radius_bottom_left = 22
+	fab_normal.corner_radius_bottom_right = 22
+	var fab_hover := StyleBoxFlat.new()
+	fab_hover.bg_color = Color(0.25, 0.6, 0.4, 1.0)
+	fab_hover.corner_radius_top_left = 22
+	fab_hover.corner_radius_top_right = 22
+	fab_hover.corner_radius_bottom_left = 22
+	fab_hover.corner_radius_bottom_right = 22
+	_fab.add_theme_stylebox_override("normal", fab_normal)
+	_fab.add_theme_stylebox_override("hover", fab_hover)
+	_fab.add_theme_stylebox_override("pressed", fab_hover)
+	_fab.pressed.connect(_toggle_build_grid)
+	canvas.add_child(_fab)
+
+	# Build grid container
+	var grid_w := GRID_COLS * CELL_SIZE_UI + (GRID_COLS - 1) * GRID_GAP + 16
+	var grid_h := GRID_ROWS * CELL_SIZE_UI + (GRID_ROWS - 1) * GRID_GAP + 16
+	_build_grid = Control.new()
+	_build_grid.size = Vector2(grid_w, grid_h)
+	_build_grid.position = Vector2(screen.x - grid_w - 20, screen.y - grid_h - 20 - fab_h - 10)
+	_build_grid.visible = false
+	canvas.add_child(_build_grid)
+
+	# Grid background
+	var grid_bg := Panel.new()
+	grid_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.12, 0.15, 0.22, 0.95)
+	bg_style.border_width_left = 2
+	bg_style.border_width_right = 2
+	bg_style.border_width_top = 2
+	bg_style.border_width_bottom = 2
+	bg_style.border_color = Color(0.35, 0.45, 0.6, 0.8)
+	bg_style.corner_radius_top_left = 8
+	bg_style.corner_radius_top_right = 8
+	bg_style.corner_radius_bottom_left = 8
+	bg_style.corner_radius_bottom_right = 8
+	bg_style.content_margin_left = 8.0
+	bg_style.content_margin_top = 8.0
+	bg_style.content_margin_right = 8.0
+	bg_style.content_margin_bottom = 8.0
+	grid_bg.add_theme_stylebox_override("panel", bg_style)
+	_build_grid.add_child(grid_bg)
+
+	# Tooltip (hidden by default)
+	_tooltip = Label.new()
+	_tooltip.add_theme_font_size_override("font_size", 14)
+	_tooltip.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	_tooltip.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_tooltip.add_theme_constant_override("shadow_offset_x", 1)
+	_tooltip.add_theme_constant_override("shadow_offset_y", 1)
+	_tooltip.visible = false
+	_tooltip.z_index = 100
+	canvas.add_child(_tooltip)
+
+	# Build cells
+	_build_cells.clear()
+	for i in BUILD_DEFS.size():
+		var def: Dictionary = BUILD_DEFS[i]
+		var col := i % GRID_COLS
+		var row := i / GRID_COLS
+		var cell := _make_build_cell(def, col, row)
+		_build_grid.add_child(cell)
+		_build_cells.append(cell)
+
+
+func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
+	var cell := Panel.new()
+	var cx := 8 + col * (CELL_SIZE_UI + GRID_GAP)
+	var cy := 8 + row * (CELL_SIZE_UI + GRID_GAP)
+	cell.position = Vector2(cx, cy)
+	cell.size = Vector2(CELL_SIZE_UI, CELL_SIZE_UI)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.22, 0.30, 0.9)
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.35, 0.45, 0.6, 0.5)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	cell.add_theme_stylebox_override("panel", style)
+
+	# Thumbnail SubViewport
+	var vp := SubViewport.new()
+	vp.size = Vector2i(CELL_SIZE_UI - 8, CELL_SIZE_UI - 8)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	cell.add_child(vp)
+
+	# Camera nhìn building
+	var cam := Camera3D.new()
+	var cam_basis := Basis(Vector3(0.7071, 0, 0.7071), Vector3(0, 1, 0), Vector3(-0.7071, 0, 0.7071))
+	cam.transform = Transform3D(cam_basis, Vector3(6.0, 5.0, 6.0))
+	cam.fov = 35.0
+	vp.add_child(cam)
+
+	# WorldEnvironment — ambient light ấm, flat kiểu 2D Ghibli
+	var env_res := Environment.new()
+	env_res.ambient_light_color = Color(0.7, 0.75, 0.65, 1)
+	env_res.ambient_light_energy = 1.0
+	env_res.background_mode = Environment.BG_COLOR
+	env_res.background_color = Color(0.82, 0.88, 0.78, 1)
+	var we := WorldEnvironment.new()
+	we.environment = env_res
+	vp.add_child(we)
+
+	# Building instance (no label)
+	var bld := Building3D.new()
+	bld.building_type = int(def.type) as Building3D.Type
+	bld.show_label = false
+	vp.add_child(bld)
+
+	# Price label ở góc dưới phải
+	var price_lbl := Label.new()
+	price_lbl.text = str(def.price)
+	price_lbl.add_theme_font_size_override("font_size", 13)
+	price_lbl.add_theme_color_override("font_color", Color(1, 0.85, 0.3, 1))
+	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	price_lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	price_lbl.size = Vector2(CELL_SIZE_UI - 4, 16)
+	price_lbl.position = Vector2(2, CELL_SIZE_UI - 18)
+	cell.add_child(price_lbl)
+
+	# Hover + click handling
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	var def_name: String = def.name
+	var btype: int = int(def.type)
+	cell.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			_on_cell_clicked(btype)
+	)
+	cell.mouse_entered.connect(func():
+		_on_cell_hover(def_name, cell)
+	)
+	cell.mouse_exited.connect(func():
+		_tooltip.visible = false
+	)
+
+	return cell
+
+
+func _on_cell_hover(label_text: String, cell: Control) -> void:
+	_tooltip.text = label_text
+	_tooltip.size = Vector2(100, 20)
+	var gp := cell.global_position
+	_tooltip.position = Vector2(gp.x, gp.y - 22)
+	_tooltip.visible = true
+	_tooltip.z_index = 100
+
+
+func _on_cell_clicked(btype: int) -> void:
+	_start_build(btype)
+
+
+func _toggle_build_grid() -> void:
+	_build_grid.visible = not _build_grid.visible
+	if not _build_grid.visible:
+		_cancel_build()
+		_tooltip.visible = false
 
 
 # --- Build mode ---
