@@ -309,6 +309,14 @@ func _clear_portrait() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Build mode: click để đặt công trình
 	if PlacementSystem.is_active():
+		if PlacementSystem.just_started:
+			# Bỏ qua click đầu tiên — chỉ reset flag, không đặt building
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				PlacementSystem.just_started = false
+				return
+			# Chuột di chuyển → cũng reset flag
+			if event is InputEventMouseMotion:
+				PlacementSystem.just_started = false
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var bld := PlacementSystem.confirm_place()
 			if bld:

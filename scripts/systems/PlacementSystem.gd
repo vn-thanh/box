@@ -21,6 +21,9 @@ static var _on_placed: Callable = Callable()
 static var _grid_node: Node3D = null
 static var _world_size: float = 80.0
 
+# Chặn click đầu tiên sau khi chọn building (tránh đặt ngay)
+static var just_started: bool = false
+
 
 static func is_active() -> bool:
 	return _active
@@ -42,6 +45,7 @@ static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_ar
 	_show_grid()
 	# Tạo ghost (preview)
 	_create_ghost()
+	just_started = true
 
 
 ## Thoát build mode
