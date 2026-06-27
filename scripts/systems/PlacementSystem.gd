@@ -17,6 +17,10 @@ static var _buildings: Array = []
 # UI callback khi đặt xong
 static var _on_placed: Callable = Callable()
 
+# Grid visualization
+static var _grid_node: Node3D = null
+static var _world_size: float = 80.0
+
 
 static func is_active() -> bool:
 	return _active
@@ -31,6 +35,11 @@ static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_ar
 	_buildings = buildings
 	_on_placed = on_placed
 	_active = true
+	# Lấy world_size từ parent (Main)
+	if _parent.has_method("get") and _parent.get("world_size"):
+		_world_size = _parent.get("world_size")
+	# Hiện grid
+	_show_grid()
 	# Tạo ghost (preview)
 	_create_ghost()
 
@@ -41,6 +50,7 @@ static func cancel() -> void:
 	if _ghost:
 		_ghost.queue_free()
 		_ghost = null
+	_hide_grid()
 
 
 ## Update mỗi frame — di chuyển ghost theo chuột
@@ -153,3 +163,49 @@ static func _clear_decor_in_footprint(pos: Vector3, radius: float) -> void:
 			to_remove.append(decor)
 	for d in to_remove:
 		d.queue_free()
+
+
+## Hiện grid overlay khi build mode — vạch kẻ cell trên mặt đất
+static func _show_grid() -> void:
+	if _grid_node:
+		return  # đã hiện rồi
+	_grid_node = Node3D.new()
+	_grid_node.name = "BuildGrid"
+	_parent.add_child(_grid_node)
+	var half := _world_size / 2.0
+	var cells := int(_world_size / CELL_SIZE)
+	var line_mat := StandardMaterial3D.new()
+	line_mat.albedo_color = Color(1.0, 1.0, 0.6, 0.25)
+	line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Vạch kẻ dọc (theo trục X)
+	for i in range(-cells / 2, cells / 2 + 1):
+		var x := i * CELL_SIZE
+		if abs(x) > half:
+			continue
+		var line := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.02, 0.02, _world_size)
+		line.mesh = box
+		line.position = Vector3(x, 0.02, 0)
+		line.material_override = line_mat
+		_grid_node.add_child(line)
+	# Vạch kẻ ngang (theo trục Z)
+	for i in range(-cells / 2, cells / 2 + 1):
+		var z := i * CELL_SIZE
+		if abs(z) > half:
+			continue
+		var line := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(_world_size, 0.02, 0.02)
+		line.mesh = box
+		line.position = Vector3(0, 0.02, z)
+		line.material_override = line_mat
+		_grid_node.add_child(line)
+
+
+## Ẩn grid khi thoát build mode
+static func _hide_grid() -> void:
+	if _grid_node:
+		_grid_node.queue_free()
+		_grid_node = null
