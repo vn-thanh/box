@@ -8,11 +8,10 @@ var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
 @onready var env: Environment = $WorldEnvironment.environment
 @onready var sun: DirectionalLight3D = $DirectionalLight3D
 @onready var info_panel: Panel = $CanvasLayer/InfoPanel
-@onready var info_name: Label = $CanvasLayer/InfoPanel/VBox/NameLabel
-@onready var info_age: Label = $CanvasLayer/InfoPanel/VBox/AgeLabel
-@onready var info_gender: Label = $CanvasLayer/InfoPanel/VBox/GenderLabel
-@onready var portrait_vp: SubViewport = $CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP
-@onready var portrait_cam: Camera3D = $CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP/Cam
+@onready var info_name: Label = $CanvasLayer/InfoPanel/HBox/InfoVBox/NameLabel
+@onready var info_details: Label = $CanvasLayer/InfoPanel/HBox/InfoVBox/DetailsLabel
+@onready var portrait_vp: SubViewport = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP
+@onready var portrait_cam: Camera3D = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP/Cam
 
 # Hover/selected NPC state
 var _hovered_npc: NPC3D = null
@@ -197,9 +196,8 @@ func _update_hover() -> void:
 
 func _show_npc_info(npc: NPC3D) -> void:
 	info_name.text = npc.npc_name
-	info_age.text = "Tuổi: %d" % npc.age
 	var g_text := "Nữ" if npc.gender == "female" else "Nam"
-	info_gender.text = "Giới tính: %s" % g_text
+	info_details.text = "Tuổi: %d • %s" % [npc.age, g_text]
 	_swap_portrait(npc)
 	info_panel.visible = true
 
@@ -224,7 +222,7 @@ func _swap_portrait(npc: NPC3D) -> void:
 	portrait_vp.add_child(clone)
 	clone.global_position = Vector3.ZERO
 	# Camera nhìn thẳng mặt: NPC forward là +Z, camera ở +Z nhìn về -Z
-	portrait_cam.global_position = Vector3(0, 1.0, 3.5)
+	portrait_cam.global_position = Vector3(0, 1.0, 4.7)
 	portrait_cam.look_at(Vector3(0, 1.0, 0), Vector3.UP)
 	_portrait_npc = clone
 

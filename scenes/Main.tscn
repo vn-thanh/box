@@ -102,49 +102,50 @@ script = ExtResource("3_world")
 visible = false
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 280.0
-offset_bottom = 320.0
+offset_right = 316.0
+offset_bottom = 176.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_1")
 
-[node name="VBox" type="VBoxContainer" parent="CanvasLayer/InfoPanel"]
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/InfoPanel"]
 layout_mode = 1
-offset_left = 12.0
-offset_top = 12.0
-offset_right = 252.0
-offset_bottom = 292.0
-theme_override_constants/separation = 8
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 300.0
+offset_bottom = 160.0
+theme_override_constants/separation = 10
 
-[node name="Portrait" type="SubViewportContainer" parent="CanvasLayer/InfoPanel/VBox"]
+[node name="Portrait" type="SubViewportContainer" parent="CanvasLayer/InfoPanel/HBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(240, 160)
+custom_minimum_size = Vector2(90, 140)
 stretch = true
 
-[node name="PortraitVP" type="SubViewport" parent="CanvasLayer/InfoPanel/VBox/Portrait"]
+[node name="PortraitVP" type="SubViewport" parent="CanvasLayer/InfoPanel/HBox/Portrait"]
 own_world_3d = true
 transparent_bg = true
-size = Vector2i(240, 160)
+size = Vector2i(90, 140)
 render_target_update_mode = 1
 
-[node name="Cam" type="Camera3D" parent="CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 3.5)
+[node name="Cam" type="Camera3D" parent="CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 4.7)
 fov = 35.0
 
-[node name="Light" type="DirectionalLight3D" parent="CanvasLayer/InfoPanel/VBox/Portrait/PortraitVP"]
+[node name="Light" type="DirectionalLight3D" parent="CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP"]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, 2, 3, 2)
 light_color = Color(1, 0.95, 0.8, 1)
 light_energy = 1.5
 
-[node name="NameLabel" type="Label" parent="CanvasLayer/InfoPanel/VBox"]
+[node name="InfoVBox" type="VBoxContainer" parent="CanvasLayer/InfoPanel/HBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="NameLabel" type="Label" parent="CanvasLayer/InfoPanel/HBox/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "Name"
+autowrap_mode = 3
 
-[node name="AgeLabel" type="Label" parent="CanvasLayer/InfoPanel/VBox"]
+[node name="DetailsLabel" type="Label" parent="CanvasLayer/InfoPanel/HBox/InfoVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Age"
-
-[node name="GenderLabel" type="Label" parent="CanvasLayer/InfoPanel/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Gender"
+theme_override_font_sizes/font_size = 14
+text = "Tuổi: 0 • Nam"
