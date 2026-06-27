@@ -1,11 +1,11 @@
 extends Control
 ## MainMenu — màn hình chính
-## 3 nút: New Game (input tên world + kích cỡ), Load (danh sách save), Exit
+## Nút: New Game, Load Game, Settings, Exit (text button, không card bọc)
 
 const MAIN_SCENE := "res://scenes/Main.tscn"
+const SETTINGS_PATH := "user://settings.cfg"
 
-# Main panel
-var _panel: Panel
+# Title
 var _title_label: Label
 
 # New Game dialog
@@ -21,9 +21,16 @@ var _save_info_label: Label
 var _delete_btn: Button
 var _load_confirm_btn: Button
 
+# Settings dialog
+var _settings_panel: Panel
+var _master_slider: HSlider
+var _master_label: Label
+var _fullscreen_check: CheckBox
+
 # --- Buttons ---
 var _btn_new: Button
 var _btn_load: Button
+var _btn_settings: Button
 var _btn_exit: Button
 
 
@@ -31,8 +38,7 @@ func _ready() -> void:
 	_build_ui()
 	_connect_signals()
 	get_tree().set_auto_accept_quit(false)
-
-	# Kiểm tra có save không — ẩn nút Load nếu rỗng
+	_apply_loaded_settings()
 	_refresh_load_button_state()
 
 
@@ -53,43 +59,20 @@ func _build_ui() -> void:
 	_title_label.size = Vector2(get_viewport().get_visible_rect().size.x, 100)
 	add_child(_title_label)
 
-	var subtitle := Label.new()
-	subtitle.text = "A Ghibli World"
-	subtitle.add_theme_font_size_override("font_size", 22)
-	subtitle.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8, 0.8))
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.position = Vector2(0, 140)
-	subtitle.size = Vector2(get_viewport().get_visible_rect().size.x, 30)
-	add_child(subtitle)
-
-	# Main button container
+	# Buttons (text button, không panel bọc)
 	var screen_w := get_viewport().get_visible_rect().size.x
 	var center_x := screen_w / 2.0
-
-	# Main panel (decorative)
-	_panel = Panel.new()
-	_panel.size = Vector2(320, 260)
-	_panel.position = Vector2(center_x - 160, 200)
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.15, 0.18, 0.25, 0.9)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.3, 0.4, 0.55, 0.8)
-	panel_style.corner_radius_top_left = 8
-	panel_style.corner_radius_top_right = 8
-	panel_style.corner_radius_bottom_left = 8
-	panel_style.corner_radius_bottom_right = 8
-	_panel.add_theme_stylebox_override("panel", panel_style)
-	add_child(_panel)
-
-	# Buttons
-	_btn_new = _make_button("New Game", Vector2(center_x - 100, 220), Vector2(200, 50))
-	_btn_load = _make_button("Load Game", Vector2(center_x - 100, 285), Vector2(200, 50))
-	_btn_exit = _make_button("Exit", Vector2(center_x - 100, 350), Vector2(200, 50))
+	var btn_w := 200
+	var btn_h := 44
+	var gap := 14
+	var start_y := 220
+	_btn_new = _make_button("New Game", Vector2(center_x - btn_w / 2.0, start_y), Vector2(btn_w, btn_h))
+	_btn_load = _make_button("Load Game", Vector2(center_x - btn_w / 2.0, start_y + (btn_h + gap)), Vector2(btn_w, btn_h))
+	_btn_settings = _make_button("Settings", Vector2(center_x - btn_w / 2.0, start_y + 2 * (btn_h + gap)), Vector2(btn_w, btn_h))
+	_btn_exit = _make_button("Exit", Vector2(center_x - btn_w / 2.0, start_y + 3 * (btn_h + gap)), Vector2(btn_w, btn_h))
 	add_child(_btn_new)
 	add_child(_btn_load)
+	add_child(_btn_settings)
 	add_child(_btn_exit)
 
 	# --- New Game Dialog ---
@@ -170,6 +153,47 @@ func _build_ui() -> void:
 	_load_panel.add_child(close_load_btn)
 	close_load_btn.pressed.connect(func(): _load_panel.visible = false)
 
+	# --- Settings Dialog ---
+	_settings_panel = _make_dialog_panel(Vector2(420, 260), "Settings")
+	_settings_panel.visible = false
+	add_child(_settings_panel)
+
+	var vol_label := Label.new()
+	vol_label.text = "Master Volume:"
+	vol_label.position = Vector2(20, 60)
+	vol_label.size = Vector2(150, 25)
+	_settings_panel.add_child(vol_label)
+
+	_master_slider = HSlider.new()
+	_master_slider.min_value = 0
+	_master_slider.max_value = 100
+	_master_slider.step = 1
+	_master_slider.value = 80
+	_master_slider.position = Vector2(180, 60)
+	_master_slider.size = Vector2(180, 25)
+	_master_slider.value_changed.connect(_on_master_volume_changed)
+	_settings_panel.add_child(_master_slider)
+
+	_master_label = Label.new()
+	_master_label.text = "80%"
+	_master_label.position = Vector2(370, 58)
+	_master_label.size = Vector2(40, 25)
+	_settings_panel.add_child(_master_label)
+
+	_fullscreen_check = CheckBox.new()
+	_fullscreen_check.text = "Fullscreen"
+	_fullscreen_check.position = Vector2(180, 110)
+	_fullscreen_check.size = Vector2(160, 30)
+	_fullscreen_check.toggled.connect(_on_fullscreen_toggled)
+	_settings_panel.add_child(_fullscreen_check)
+
+	var close_settings_btn := _make_button("Close", Vector2(150, 190), Vector2(120, 40))
+	_settings_panel.add_child(close_settings_btn)
+	close_settings_btn.pressed.connect(func():
+		_settings_panel.visible = false
+		_save_settings()
+	)
+
 
 func _make_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	var btn := Button.new()
@@ -177,37 +201,31 @@ func _make_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.position = pos
 	btn.size = sz
 	btn.add_theme_font_size_override("font_size", 18)
+	# Text button: nền trong suốt, chỉ hiện text; hover sáng nhẹ
 	var style_normal := StyleBoxFlat.new()
-	style_normal.bg_color = Color(0.2, 0.25, 0.35, 0.95)
-	style_normal.border_width_left = 1
-	style_normal.border_width_right = 1
-	style_normal.border_width_top = 1
-	style_normal.border_width_bottom = 1
-	style_normal.border_color = Color(0.35, 0.45, 0.6, 0.6)
-	style_normal.corner_radius_top_left = 6
-	style_normal.corner_radius_top_right = 6
-	style_normal.corner_radius_bottom_left = 6
-	style_normal.corner_radius_bottom_right = 6
+	style_normal.bg_color = Color(0, 0, 0, 0)
+	style_normal.border_width_left = 0
+	style_normal.border_width_right = 0
+	style_normal.border_width_top = 0
+	style_normal.border_width_bottom = 0
 	var style_hover := StyleBoxFlat.new()
-	style_hover.bg_color = Color(0.3, 0.4, 0.55, 1.0)
-	style_hover.border_width_left = 1
-	style_hover.border_width_right = 1
-	style_hover.border_width_top = 1
-	style_hover.border_width_bottom = 1
-	style_hover.border_color = Color(0.5, 0.6, 0.8, 1.0)
-	style_hover.corner_radius_top_left = 6
-	style_hover.corner_radius_top_right = 6
-	style_hover.corner_radius_bottom_left = 6
-	style_hover.corner_radius_bottom_right = 6
+	style_hover.bg_color = Color(1, 1, 1, 0.08)
+	style_hover.border_width_left = 0
+	style_hover.border_width_right = 0
+	style_hover.border_width_top = 0
+	style_hover.border_width_bottom = 0
 	var style_pressed := StyleBoxFlat.new()
-	style_pressed.bg_color = Color(0.15, 0.2, 0.3, 1.0)
-	style_pressed.corner_radius_top_left = 6
-	style_pressed.corner_radius_top_right = 6
-	style_pressed.corner_radius_bottom_left = 6
-	style_pressed.corner_radius_bottom_right = 6
+	style_pressed.bg_color = Color(1, 1, 1, 0.04)
+	style_pressed.border_width_left = 0
+	style_pressed.border_width_right = 0
+	style_pressed.border_width_top = 0
+	style_pressed.border_width_bottom = 0
 	btn.add_theme_stylebox_override("normal", style_normal)
 	btn.add_theme_stylebox_override("hover", style_hover)
 	btn.add_theme_stylebox_override("pressed", style_pressed)
+	btn.add_theme_color_override("font_color", Color(0.82, 0.88, 0.95, 0.9))
+	btn.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+	btn.add_theme_color_override("font_pressed_color", Color(0.7, 0.78, 0.88, 1))
 	return btn
 
 
@@ -248,6 +266,7 @@ func _make_dialog_panel(sz: Vector2, title_text: String) -> Panel:
 func _connect_signals() -> void:
 	_btn_new.pressed.connect(func(): _new_game_panel.visible = true)
 	_btn_load.pressed.connect(_open_load_dialog)
+	_btn_settings.pressed.connect(func(): _settings_panel.visible = true)
 	_btn_exit.pressed.connect(_on_exit)
 	_size_slider.value_changed.connect(_on_size_changed)
 
@@ -339,3 +358,42 @@ func _refresh_load_button_state() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		get_tree().quit()
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+func _on_master_volume_changed(value: float) -> void:
+	_master_label.text = "%d%%" % int(value)
+	var db := linear_to_db(value / 100.0)
+	if value <= 0:
+		db = -80.0
+	AudioServer.set_bus_volume_db(0, db)
+
+
+func _on_fullscreen_toggled(enabled: bool) -> void:
+	if enabled:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func _save_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("audio", "master_volume", int(_master_slider.value))
+	cfg.set_value("display", "fullscreen", _fullscreen_check.button_pressed)
+	cfg.save(SETTINGS_PATH)
+
+
+func _apply_loaded_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) != OK:
+		return
+	var vol := int(cfg.get_value("audio", "master_volume", 80))
+	var fs := bool(cfg.get_value("display", "fullscreen", false))
+	_master_slider.value = vol
+	_master_label.text = "%d%%" % vol
+	_fullscreen_check.button_pressed = fs
+	_on_master_volume_changed(float(vol))
+	if fs:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
