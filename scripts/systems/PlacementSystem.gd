@@ -27,6 +27,15 @@ static var just_started: bool = false
 # Rotation hiện tại của ghost (radian)
 static var _build_rot: float = 0.0
 
+# --- Road drag-build ---
+# Bấm giữ chuột ở điểm đầu, kéo đến điểm cuối, hiện preview đoạn đường
+# Thả tay → đặt toàn bộ road tiles dọc theo L-path (x rồi z hoặc z rồi x)
+static var _road_dragging: bool = false
+static var _road_start: Vector3 = Vector3.ZERO  # grid-snapped world pos
+static var _road_preview: Array = []  # preview tiles
+const ROAD_TILE_SIZE: float = 4.0  # road footprint 4x4
+const ROAD_STEP: float = 2.0  # grid snap step = CELL_SIZE
+
 
 static func is_active() -> bool:
 	return _active
@@ -55,6 +64,7 @@ static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_ar
 ## Thoát build mode
 static func cancel() -> void:
 	_active = false
+	cancel_road_drag()
 	if _ghost:
 		_ghost.queue_free()
 		_ghost = null
@@ -229,3 +239,157 @@ static func _hide_grid() -> void:
 	if _grid_node:
 		_grid_node.queue_free()
 		_grid_node = null
+
+
+# ============================================================
+# ROAD DRAG-BUILD
+# ============================================================
+
+## True nếu đang trong road drag-build mode
+static func is_road_dragging() -> bool:
+	return _road_dragging
+
+
+## Bắt đầu drag — gọi khi nhấn chuột trái với road type
+static func start_road_drag(mouse_pos: Vector2) -> void:
+	var pos := _snap_to_ground(mouse_pos)
+	if pos == Vector3.ZERO:
+		return
+	_road_start = pos
+	_road_dragging = true
+	# Ẩn ghost đơn khi bắt đầu drag
+	if _ghost:
+		_ghost.visible = false
+
+
+## Update drag preview — gọi mỗi frame khi đang drag
+static func update_road_drag(mouse_pos: Vector2) -> void:
+	if not _road_dragging:
+		return
+	var end_pos := _snap_to_ground(mouse_pos)
+	if end_pos == Vector3.ZERO:
+		return
+	_clear_road_preview()
+	var tiles := _road_path(_road_start, end_pos)
+	var road_mat := StandardMaterial3D.new()
+	road_mat.albedo_color = Color(0.52, 0.44, 0.34, 0.6)
+	road_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	road_mat.roughness = 0.95
+	for tile_pos in tiles:
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(ROAD_TILE_SIZE, 0.08, ROAD_TILE_SIZE)
+		mi.mesh = box
+		mi.position = tile_pos
+		mi.material_override = road_mat
+		_parent.add_child(mi)
+		_road_preview.append(mi)
+
+
+## Kết thúc drag — đặt toàn bộ road tiles, trả về số tile đã đặt
+static func finish_road_drag(mouse_pos: Vector2) -> int:
+	if not _road_dragging:
+		return 0
+	_road_dragging = false
+	_clear_road_preview()
+	var end_pos := _snap_to_ground(mouse_pos)
+	if end_pos == Vector3.ZERO:
+		end_pos = _road_start
+	var tiles := _road_path(_road_start, end_pos)
+	var count := 0
+	for tile_pos in tiles:
+		# Check valid — cho phép đặt đè lên road cũ
+		var ok := _can_place_road(tile_pos)
+		if not ok:
+			continue
+		var bld := BUILDING_SCENE.instantiate() as Building3D
+		bld.building_type = _build_type
+		_parent.add_child(bld)
+		bld.global_position = tile_pos
+		bld.rotation.y = 0.0
+		_buildings.append(bld)
+		PathfindingSystem.add_building(bld)
+		_clear_decor_in_footprint(tile_pos, 2.0)
+		if _on_placed.is_valid():
+			_on_placed.call(bld)
+		count += 1
+	# Hiện lại ghost cho lần click tiếp theo
+	if _ghost:
+		_ghost.visible = true
+	return count
+
+
+## Hủy drag (ESC hoặc right-click)
+static func cancel_road_drag() -> void:
+	_road_dragging = false
+	_clear_road_preview()
+	if _ghost:
+		_ghost.visible = true
+
+
+## Tính danh sách tile positions cho đoạn đường L-shaped
+## Đi theo trục X trước rồi Z (hoặc Z rồi X — chọn path ngắn nhất = thẳng)
+static func _road_path(start: Vector3, end: Vector3) -> Array:
+	var tiles: Array = []
+	var sx := start.x
+	var sz := start.z
+	var ex := end.x
+	var ez := end.z
+	# Nếu thẳng hàng 1 trục → đường thẳng
+	if sx == ex:
+		# Đường dọc Z
+		var z := sz
+		while abs(z - ez) > 0.01:
+			tiles.append(Vector3(sx, 0.04, z))
+			z += sign(ez - sz) * ROAD_STEP
+		tiles.append(Vector3(ex, 0.04, ez))
+	elif sz == ez:
+		# Đường ngang X
+		var x := sx
+		while abs(x - ex) > 0.01:
+			tiles.append(Vector3(x, 0.04, sz))
+			x += sign(ex - sx) * ROAD_STEP
+		tiles.append(Vector3(ex, 0.04, ez))
+	else:
+		# L-shaped: đi X trước rồi Z
+		var x := sx
+		while abs(x - ex) > 0.01:
+			tiles.append(Vector3(x, 0.04, sz))
+			x += sign(ex - sx) * ROAD_STEP
+		tiles.append(Vector3(ex, 0.04, sz))
+		var z := sz
+		while abs(z - ez) > 0.01:
+			tiles.append(Vector3(ex, 0.04, z))
+			z += sign(ez - sz) * ROAD_STEP
+		tiles.append(Vector3(ex, 0.04, ez))
+	return tiles
+
+
+## Check placement cho road — cho phép đặt đè lên road cũ
+static func _can_place_road(pos: Vector3) -> bool:
+	# Check bounds
+	if abs(pos.x) > _world_size / 2.0 - 2 or abs(pos.z) > _world_size / 2.0 - 2:
+		return false
+	# Check nước
+	if WaterGen.is_in_water(pos, _water_areas, 2.0):
+		return false
+	# Check building khác (bỏ qua road)
+	for b in _buildings:
+		var bld := b as Building3D
+		if not bld:
+			continue
+		if bld.building_type == Building3D.Type.ROAD:
+			continue
+		var dx: float = abs(pos.x - bld.global_position.x)
+		var dz: float = abs(pos.z - bld.global_position.z)
+		if dx < 4.0 and dz < 4.0:
+			return false
+	return true
+
+
+## Xóa preview tiles
+static func _clear_road_preview() -> void:
+	for mi in _road_preview:
+		if is_instance_valid(mi):
+			mi.queue_free()
+	_road_preview.clear()

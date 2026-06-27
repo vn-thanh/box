@@ -249,6 +249,9 @@ func _process(delta: float) -> void:
 		_update_hover()
 	else:
 		PlacementSystem.update(get_viewport().get_mouse_position())
+		# Road drag: update preview mỗi frame
+		if PlacementSystem.is_road_dragging():
+			PlacementSystem.update_road_drag(get_viewport().get_mouse_position())
 
 
 func _update_hover() -> void:
@@ -328,23 +331,49 @@ func _clear_portrait() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Build mode: click để đặt công trình
 	if PlacementSystem.is_active():
+		# Bỏ qua click đầu tiên sau khi chọn building (tránh đặt ngay lập tức)
 		if PlacementSystem.just_started:
-			# Bỏ qua click đầu tiên — chỉ reset flag, không đặt building
 			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 				PlacementSystem.just_started = false
 				return
-			# Chuột di chuyển → cũng reset flag
 			if event is InputEventMouseMotion:
 				PlacementSystem.just_started = false
+				return
+		# Road drag-build
+		if _build_type_is_road():
+			if PlacementSystem.is_road_dragging():
+				# Đang drag → thả chuột đặt road, motion update preview
+				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+					var count := PlacementSystem.finish_road_drag(get_viewport().get_mouse_position())
+					if count > 0:
+						print("[Build] Placed %d road tiles" % count)
+					return
+				if event is InputEventMouseMotion:
+					PlacementSystem.update_road_drag(get_viewport().get_mouse_position())
+					return
+				if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+					PlacementSystem.cancel_road_drag()
+					_cancel_build()
+					return
+			else:
+				# Chưa drag → nhấn chuột trái bắt đầu drag
+				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+					PlacementSystem.start_road_drag(get_viewport().get_mouse_position())
+					return
+				if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+					PlacementSystem.cancel_road_drag()
+					_cancel_build()
+					return
+			return
+		# Building thường (không phải road): click để đặt 1 công trình
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var bld := PlacementSystem.confirm_place()
 			if bld:
 				print("[Build] Placed %s at %s" % [bld.get_type_name(), bld.global_position])
-				# Auto-assign NPC vào building mới
 				_auto_assign_workers()
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			PlacementSystem.cancel_road_drag()
 			_cancel_build()
-		# R → xoay ghost 90 độ
 		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 			PlacementSystem.rotate_ghost()
 		return
@@ -416,6 +445,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # --- Build mode ---
+
+func _build_type_is_road() -> bool:
+	# PlacementSystem._build_type là static var — check type road
+	return PlacementSystem._build_type == Building3D.Type.ROAD
 
 func _start_build(type: int) -> void:
 	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
