@@ -50,6 +50,9 @@ var _wander_timer: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
 var _speed: float = 2.0
 
+# Vùng nước — NPC tránh đi vào (set bởi Main sau khi world gen)
+var water_areas: Array = []
+
 # --- Name pools ---
 const SURNAMES := ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Wilson", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White", "Harris", "Clark", "Lewis", "Walker", "Hall", "Allen", "Young", "King", "Wright", "Hill"]
 const MALE_NAMES := ["James", "John", "Robert", "Michael", "William", "David", "Joseph", "Charles", "Thomas", "Daniel", "Matthew", "Andrew", "Christopher", "Anthony", "Mark", "Steven", "Paul", "Andrew", "Joshua", "Kenneth", "Kevin", "Brian", "George", "Edward", "Ronald", "Timothy", "Jason", "Jeffrey", "Ryan"]
@@ -328,6 +331,14 @@ func _physics_process(delta: float) -> void:
 		_wander_dir.z *= -1
 	global_position = pos
 
+	# Tránh nước: nếu vị trí hiện tại hoặc vị trí kế tiếp nằm trong nước, dừng và đổi hướng
+	if _is_moving and water_areas.size() > 0:
+		var next_pos := global_position + velocity * delta
+		if WaterGen.is_in_water(global_position, water_areas, 0.5) or WaterGen.is_in_water(next_pos, water_areas, 0.5):
+			# Lùi ra khỏi nước 1 chút rồi chọn hướng mới
+			_is_moving = false
+			_wander_timer = 0.0
+
 	move_and_slide()
 	_update_face(delta)
 	_update_visuals(delta)
@@ -336,8 +347,13 @@ func _physics_process(delta: float) -> void:
 func _pick_new_wander() -> void:
 	if randf() < 0.65:
 		_is_moving = true
+		# Chọn hướng không đi vào nước (thử tối đa 8 hướng)
 		var angle := randf() * TAU
-		_wander_dir = Vector3(cos(angle), 0, sin(angle))
+		for _attempt in 8:
+			angle = randf() * TAU
+			_wander_dir = Vector3(cos(angle), 0, sin(angle))
+			if water_areas.size() == 0 or not WaterGen.is_in_water(global_position + _wander_dir * 3.0, water_areas, 0.5):
+				break
 		# Người già và trẻ nhỏ đi chậm hơn
 		var speed_mod := 1.0
 		if age < 10:

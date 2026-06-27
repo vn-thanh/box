@@ -9,6 +9,9 @@ enum Type { BIRD, RABBIT }
 @export var animal_type: Type = Type.BIRD
 @export var world_bounds: float = 35.0
 
+# Vùng nước — thỏ tránh đi vào (set bởi AnimalGen sau khi spawn)
+var water_areas: Array = []
+
 # --- Wander ---
 var _wander_timer: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
@@ -244,6 +247,19 @@ func _process(delta: float) -> void:
 		pos.z = clampf(pos.z, -world_bounds, world_bounds)
 		_wander_dir.z *= -1
 
+	# Thỏ tránh nước — chim bay trên cao nên không cần
+	if animal_type == Type.RABBIT and water_areas.size() > 0:
+		if WaterGen.is_in_water(pos, water_areas, 0.5):
+			# Đang trong nước — lùi ra và đổi hướng
+			pos = global_position
+			_wander_dir = -_wander_dir
+			_is_moving = false
+			_wander_timer = 0.0
+		elif WaterGen.is_in_water(pos + _wander_dir * 2.0, water_areas, 0.5):
+			# Sắp vào nước — dừng, chọn hướng mới
+			_is_moving = false
+			_wander_timer = 0.0
+
 	global_position = pos
 
 	# Face direction of movement
@@ -268,6 +284,12 @@ func _pick_new_wander() -> void:
 		if _is_moving:
 			var angle := randf() * TAU
 			_wander_dir = Vector3(cos(angle), 0, sin(angle))
+			# Chọn hướng không đi vào nước (thử tối đa 8 hướng)
+			for _attempt in 8:
+				angle = randf() * TAU
+				_wander_dir = Vector3(cos(angle), 0, sin(angle))
+				if water_areas.size() == 0 or not WaterGen.is_in_water(global_position + _wander_dir * 3.0, water_areas, 0.5):
+					break
 			_speed = randf_range(1.5, 3.0)
 		else:
 			_wander_dir = Vector3.ZERO

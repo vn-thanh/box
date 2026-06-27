@@ -23,6 +23,7 @@ static func generate(parent: Node3D, bird_count: int, rabbit_count: int, world_s
 			pos = pos.normalized() * 5.0
 		var rabbit := ANIMAL_SCENE.instantiate() as Animal3D
 		rabbit.animal_type = Animal3D.Type.RABBIT
+		rabbit.water_areas = water_areas
 		parent.add_child(rabbit)
 		rabbit.global_position = pos
 		rabbit.world_bounds = world_size * 0.45

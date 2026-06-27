@@ -83,16 +83,24 @@ func _ready() -> void:
 
 
 func _spawn_npcs() -> void:
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
 	for i in NPC_COUNT:
 		var npc := npc_scene.instantiate() as NPC3D
 		add_child(npc)
-		var angle := randf() * TAU
-		var dist := randf_range(5.0, world_size * 0.4)
-		npc.global_position = Vector3(cos(angle) * dist, 0, sin(angle) * dist)
+		var pos := Vector3.ZERO
+		for _attempt in 30:
+			var angle := randf() * TAU
+			var dist := randf_range(5.0, world_size * 0.4)
+			pos = Vector3(cos(angle) * dist, 0, sin(angle) * dist)
+			if not WaterGen.is_in_water(pos, water_areas, 2.0):
+				break
+		npc.global_position = pos
 		npc.world_bounds = world_size * 0.45
+		npc.water_areas = water_areas
 
 
 func _load_npcs() -> void:
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
 	var npcs: Array = _load_data.get("npcs", [])
 	for npc_data in npcs:
 		var npc := npc_scene.instantiate() as NPC3D
@@ -108,6 +116,7 @@ func _load_npcs() -> void:
 			float(npc_data.get("pos_z", 0.0))
 		)
 		npc.world_bounds = world_size * 0.45
+		npc.water_areas = water_areas
 
 
 func _process(delta: float) -> void:

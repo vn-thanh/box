@@ -21,6 +21,11 @@ var _water_areas: Array = []
 var _generated: bool = false
 
 
+## Trả về danh sách vùng nước để NPC/động vật tránh
+func get_water_areas() -> Array:
+	return _water_areas
+
+
 func _ready() -> void:
 	_rng.seed = seed
 	# Không tự generate ở đây — đợi Main gọi generate() sau khi set world_size
