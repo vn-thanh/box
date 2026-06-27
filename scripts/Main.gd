@@ -203,17 +203,21 @@ func _process(delta: float) -> void:
 
 	cam_target += (forward * (-input.y) + right * input.x) * CAM_SPEED * delta
 
-	# Middle mouse drag — di chuyển camera theo chuột
+	# Middle mouse drag — di chuyển camera theo chuột (1:1, không delay)
 	if _dragging:
 		var mouse_pos := get_viewport().get_mouse_position()
 		var delta_mouse := mouse_pos - _drag_last_pos
-		# Chuyển delta screen → world space trên mặt phẳng XZ
-		# Camera nhìn xuống ~35°, drag sang phải = move right, drag xuống = move forward
-		cam_target -= right * delta_mouse.x * 0.05
-		cam_target += forward * delta_mouse.y * 0.05
+		# Orthographic: world units per pixel = camera.size / viewport_height
+		# Drag sang phải = camera sang trái, drag xuống = camera lùi
+		var vp_size := get_viewport().get_visible_rect().size
+		var world_per_pixel := camera.size / vp_size.y
+		cam_target -= right * delta_mouse.x * world_per_pixel
+		cam_target -= forward * delta_mouse.y * world_per_pixel
+		# Sync ngay — không smooth khi drag
+		cam_target_smooth = cam_target
 		_drag_last_pos = mouse_pos
-
-	cam_target_smooth = cam_target_smooth.lerp(cam_target, CAM_SMOOTH * delta)
+	else:
+		cam_target_smooth = cam_target_smooth.lerp(cam_target, CAM_SMOOTH * delta)
 
 	# Smooth zoom
 	zoom_current = lerpf(zoom_current, zoom, ZOOM_SMOOTH * delta)
