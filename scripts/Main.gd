@@ -212,7 +212,7 @@ func _process(delta: float) -> void:
 		var vp_size := get_viewport().get_visible_rect().size
 		var world_per_pixel := camera.size / vp_size.y
 		cam_target -= right * delta_mouse.x * world_per_pixel
-		cam_target -= forward * delta_mouse.y * world_per_pixel
+		cam_target += forward * delta_mouse.y * world_per_pixel
 		# Sync ngay — không smooth khi drag
 		cam_target_smooth = cam_target
 		_drag_last_pos = mouse_pos
