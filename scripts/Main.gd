@@ -344,6 +344,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				_auto_assign_workers()
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			_cancel_build()
+		# R → xoay ghost 90 độ
+		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+			PlacementSystem.rotate_ghost()
 		return
 
 	# Click to select NPC (left button)

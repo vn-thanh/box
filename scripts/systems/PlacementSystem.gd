@@ -24,6 +24,9 @@ static var _world_size: float = 80.0
 # Chặn click đầu tiên sau khi chọn building (tránh đặt ngay)
 static var just_started: bool = false
 
+# Rotation hiện tại của ghost (radian)
+static var _build_rot: float = 0.0
+
 
 static func is_active() -> bool:
 	return _active
@@ -38,6 +41,7 @@ static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_ar
 	_buildings = buildings
 	_on_placed = on_placed
 	_active = true
+	_build_rot = 0.0
 	# Lấy world_size từ parent (Main)
 	if _parent.has_method("get") and _parent.get("world_size"):
 		_world_size = _parent.get("world_size")
@@ -90,6 +94,7 @@ static func confirm_place() -> Building3D:
 	bld.building_type = _build_type
 	_parent.add_child(bld)
 	bld.global_position = pos
+	bld.rotation.y = _build_rot
 	_buildings.append(bld)
 	PathfindingSystem.add_building(bld)
 	# Đường: xóa decor (cây/cỏ/hoa/đá) nằm trong footprint
@@ -109,12 +114,23 @@ static func _create_ghost() -> void:
 	_ghost = BUILDING_SCENE.instantiate() as Building3D
 	_ghost.building_type = _build_type
 	_parent.add_child(_ghost)
+	_ghost.rotation.y = _build_rot
 	# Làm mờ tất cả mesh
 	for mi in _ghost._meshes:
 		var mat := mi.material_override as StandardMaterial3D
 		if mat:
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mat.albedo_color.a = 0.5
+
+
+## Xoay ghost 90 độ khi bấm R
+static func rotate_ghost() -> void:
+	if not _ghost:
+		return
+	_build_rot += PI / 2.0
+	if _build_rot >= TAU - 0.01:
+		_build_rot = 0.0
+	_ghost.rotation.y = _build_rot
 
 
 static func _snap_to_ground(mouse_pos: Vector2) -> Vector3:
