@@ -28,7 +28,7 @@ var gender: String = "male"
 var body_scale: float = 1.0
 
 # --- Job / Role ---
-enum JobType { NONE, GATHERER, LUMBERJACK, MASON, FARMER }
+enum JobType { NONE, GATHERER, LUMBERJACK, PRIEST, DOCTOR, TEACHER }
 var job: JobType = JobType.NONE:
 	set(v):
 		if job != v:
@@ -525,14 +525,16 @@ func _update_job_label() -> void:
 	match job:
 		JobType.GATHERER: text = "Hái lượm"
 		JobType.LUMBERJACK: text = "Thợ gỗ"
-		JobType.MASON: text = "Thợ đá"
-		JobType.FARMER: text = "Nông dân"
+		JobType.PRIEST: text = "Linh mục"
+		JobType.DOCTOR: text = "Bác sĩ"
+		JobType.TEACHER: text = "Giáo viên"
 		_: text = ""
 	_job_label.text = text
 	# Màu theo job
 	match job:
 		JobType.GATHERER: _job_label.modulate = Color(0.7, 0.8, 0.5)
 		JobType.LUMBERJACK: _job_label.modulate = Color(0.9, 0.6, 0.3)
-		JobType.MASON: _job_label.modulate = Color(0.6, 0.6, 0.65)
-		JobType.FARMER: _job_label.modulate = Color(0.5, 0.7, 0.4)
+		JobType.PRIEST: _job_label.modulate = Color(0.8, 0.75, 0.3)
+		JobType.DOCTOR: _job_label.modulate = Color(0.9, 0.3, 0.3)
+		JobType.TEACHER: _job_label.modulate = Color(0.3, 0.5, 0.8)
 		_: _job_label.modulate = Color(0.5, 0.5, 0.5)

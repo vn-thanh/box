@@ -122,7 +122,8 @@ static func _snap_to_ground(mouse_pos: Vector2) -> Vector3:
 static func get_build_options() -> Array[Dictionary]:
 	return [
 		{ "type": Building3D.Type.SAWMILL, "name": "Xưởng gỗ", "slots": 2, "icon": "🪵" },
-		{ "type": Building3D.Type.QUARRY, "name": "Mỏ đá", "slots": 2, "icon": "⛏️" },
-		{ "type": Building3D.Type.FARM, "name": "Trại nông", "slots": 3, "icon": "🌾" },
+		{ "type": Building3D.Type.CHURCH, "name": "Nhà thờ", "slots": 1, "icon": "⛪" },
+		{ "type": Building3D.Type.HOSPITAL, "name": "Bệnh viện", "slots": 3, "icon": "🏥" },
+		{ "type": Building3D.Type.SCHOOL, "name": "Trường học", "slots": 2, "icon": "🏫" },
 		{ "type": Building3D.Type.HOUSE, "name": "Nhà ở", "slots": 0, "icon": "🏠" },
 	]

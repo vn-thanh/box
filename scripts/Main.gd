@@ -18,8 +18,9 @@ var building_scene: PackedScene = preload("res://scenes/Building.tscn")
 # Build mode UI
 @onready var build_toolbar: Panel = $CanvasLayer/BuildToolbar
 @onready var btn_sawmill: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSawmill
-@onready var btn_quarry: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnQuarry
-@onready var btn_farm: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnFarm
+@onready var btn_church: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnChurch
+@onready var btn_hospital: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHospital
+@onready var btn_school: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSchool
 @onready var btn_house: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHouse
 @onready var cancel_btn: Button = $CanvasLayer/BuildToolbar/CancelBtn
 @onready var bld_info_panel: Panel = $CanvasLayer/BuildingInfoPanel
@@ -107,8 +108,9 @@ func _ready() -> void:
 
 	# Connect build toolbar buttons
 	btn_sawmill.pressed.connect(func(): _start_build(Building3D.Type.SAWMILL))
-	btn_quarry.pressed.connect(func(): _start_build(Building3D.Type.QUARRY))
-	btn_farm.pressed.connect(func(): _start_build(Building3D.Type.FARM))
+	btn_church.pressed.connect(func(): _start_build(Building3D.Type.CHURCH))
+	btn_hospital.pressed.connect(func(): _start_build(Building3D.Type.HOSPITAL))
+	btn_school.pressed.connect(func(): _start_build(Building3D.Type.SCHOOL))
 	btn_house.pressed.connect(func(): _start_build(Building3D.Type.HOUSE))
 	cancel_btn.pressed.connect(_cancel_build)
 
