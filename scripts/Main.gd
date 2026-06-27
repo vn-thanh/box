@@ -445,7 +445,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Build mode UI ---
 
-const CELL_SIZE_UI := 90
+const CELL_SIZE_UI := 68
 const GRID_COLS := 3
 const GRID_ROWS := 2
 const GRID_GAP := 8
@@ -454,61 +454,40 @@ func _build_build_ui() -> void:
 	var screen := get_viewport().get_visible_rect().size
 	var canvas := $CanvasLayer
 
-	# FAB (floating action button) — góc dưới phải
+	# FAB (floating action button) — hình tròn, icon ngôi nhà
 	_fab = Button.new()
-	_fab.text = "✚ Build"
-	_fab.add_theme_font_size_override("font_size", 18)
-	var fab_w := 100
-	var fab_h := 44
-	_fab.size = Vector2(fab_w, fab_h)
-	_fab.position = Vector2(screen.x - fab_w - 20, screen.y - fab_h - 20)
+	var fab_size := 56
+	_fab.size = Vector2(fab_size, fab_size)
+	_fab.position = Vector2(screen.x - fab_size - 20, screen.y - fab_size - 20)
+	_fab.icon = _make_house_icon()
+	_fab.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_fab.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	var fab_normal := StyleBoxFlat.new()
-	fab_normal.bg_color = Color(0.2, 0.5, 0.35, 0.95)
-	fab_normal.corner_radius_top_left = 22
-	fab_normal.corner_radius_top_right = 22
-	fab_normal.corner_radius_bottom_left = 22
-	fab_normal.corner_radius_bottom_right = 22
+	fab_normal.bg_color = Color(0.2, 0.5, 0.35, 0.9)
+	fab_normal.corner_radius_top_left = int(fab_size / 2)
+	fab_normal.corner_radius_top_right = int(fab_size / 2)
+	fab_normal.corner_radius_bottom_left = int(fab_size / 2)
+	fab_normal.corner_radius_bottom_right = int(fab_size / 2)
 	var fab_hover := StyleBoxFlat.new()
 	fab_hover.bg_color = Color(0.25, 0.6, 0.4, 1.0)
-	fab_hover.corner_radius_top_left = 22
-	fab_hover.corner_radius_top_right = 22
-	fab_hover.corner_radius_bottom_left = 22
-	fab_hover.corner_radius_bottom_right = 22
+	fab_hover.corner_radius_top_left = int(fab_size / 2)
+	fab_hover.corner_radius_top_right = int(fab_size / 2)
+	fab_hover.corner_radius_bottom_left = int(fab_size / 2)
+	fab_hover.corner_radius_bottom_right = int(fab_size / 2)
 	_fab.add_theme_stylebox_override("normal", fab_normal)
 	_fab.add_theme_stylebox_override("hover", fab_hover)
 	_fab.add_theme_stylebox_override("pressed", fab_hover)
 	_fab.pressed.connect(_toggle_build_grid)
 	canvas.add_child(_fab)
 
-	# Build grid container
-	var grid_w := GRID_COLS * CELL_SIZE_UI + (GRID_COLS - 1) * GRID_GAP + 16
-	var grid_h := GRID_ROWS * CELL_SIZE_UI + (GRID_ROWS - 1) * GRID_GAP + 16
+	# Build grid container — không có background chung
+	var grid_w := GRID_COLS * CELL_SIZE_UI + (GRID_COLS - 1) * GRID_GAP
+	var grid_h := GRID_ROWS * CELL_SIZE_UI + (GRID_ROWS - 1) * GRID_GAP
 	_build_grid = Control.new()
 	_build_grid.size = Vector2(grid_w, grid_h)
-	_build_grid.position = Vector2(screen.x - grid_w - 20, screen.y - grid_h - 20 - fab_h - 10)
+	_build_grid.position = Vector2(screen.x - grid_w - 20, screen.y - grid_h - 20 - fab_size - 10)
 	_build_grid.visible = false
 	canvas.add_child(_build_grid)
-
-	# Grid background
-	var grid_bg := Panel.new()
-	grid_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg_style := StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.12, 0.15, 0.22, 0.95)
-	bg_style.border_width_left = 2
-	bg_style.border_width_right = 2
-	bg_style.border_width_top = 2
-	bg_style.border_width_bottom = 2
-	bg_style.border_color = Color(0.35, 0.45, 0.6, 0.8)
-	bg_style.corner_radius_top_left = 8
-	bg_style.corner_radius_top_right = 8
-	bg_style.corner_radius_bottom_left = 8
-	bg_style.corner_radius_bottom_right = 8
-	bg_style.content_margin_left = 8.0
-	bg_style.content_margin_top = 8.0
-	bg_style.content_margin_right = 8.0
-	bg_style.content_margin_bottom = 8.0
-	grid_bg.add_theme_stylebox_override("panel", bg_style)
-	_build_grid.add_child(grid_bg)
 
 	# Tooltip (hidden by default)
 	_tooltip = Label.new()
@@ -532,31 +511,52 @@ func _build_build_ui() -> void:
 		_build_cells.append(cell)
 
 
+func _make_house_icon() -> Texture2D:
+	# Vẽ icon ngôi nhà trắng trên nền trong suốt bằng Image
+	var sz := 48
+	var img := Image.create(sz, sz, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var white := Color(1, 1, 1, 1)
+	# Mái nhà (tam giác)
+	for y in range(10, 26):
+		var half := y - 10
+		for x in range(24 - half, 24 + half + 1):
+			img.set_pixel(x, y, white)
+	# Thân nhà (hình chữ nhật)
+	for y in range(26, 42):
+		for x in range(12, 37):
+			img.set_pixel(x, y, white)
+	# Cửa (khoét)
+	var door_col := Color(0, 0, 0, 0)
+	for y in range(32, 42):
+		for x in range(21, 28):
+			img.set_pixel(x, y, door_col)
+	return ImageTexture.create_from_image(img)
+
+
 func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
 	var cell := Panel.new()
-	var cx := 8 + col * (CELL_SIZE_UI + GRID_GAP)
-	var cy := 8 + row * (CELL_SIZE_UI + GRID_GAP)
+	var cx := col * (CELL_SIZE_UI + GRID_GAP)
+	var cy := row * (CELL_SIZE_UI + GRID_GAP)
 	cell.position = Vector2(cx, cy)
 	cell.size = Vector2(CELL_SIZE_UI, CELL_SIZE_UI)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.18, 0.22, 0.30, 0.9)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.35, 0.45, 0.6, 0.5)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.bg_color = Color(0, 0, 0, 0.35)
 	cell.add_theme_stylebox_override("panel", style)
 
-	# Thumbnail SubViewport
+	# Thumbnail SubViewport — phải dùng SubViewportContainer để render
+	var vp_container := SubViewportContainer.new()
+	vp_container.size = Vector2(CELL_SIZE_UI, CELL_SIZE_UI)
+	vp_container.position = Vector2(0, 0)
+	vp_container.stretch = true
+	cell.add_child(vp_container)
+
 	var vp := SubViewport.new()
-	vp.size = Vector2i(CELL_SIZE_UI - 8, CELL_SIZE_UI - 8)
+	vp.size = Vector2i(CELL_SIZE_UI, CELL_SIZE_UI)
 	vp.transparent_bg = true
+	vp.own_world_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	cell.add_child(vp)
+	vp_container.add_child(vp)
 
 	# Camera nhìn building
 	var cam := Camera3D.new()
@@ -581,15 +581,19 @@ func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
 	bld.show_label = false
 	vp.add_child(bld)
 
-	# Price label ở góc dưới phải
+	# Price label ở góc dưới phải — z_index cao để không bị che
 	var price_lbl := Label.new()
 	price_lbl.text = str(def.price)
-	price_lbl.add_theme_font_size_override("font_size", 13)
+	price_lbl.add_theme_font_size_override("font_size", 12)
 	price_lbl.add_theme_color_override("font_color", Color(1, 0.85, 0.3, 1))
+	price_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	price_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	price_lbl.add_theme_constant_override("shadow_offset_y", 1)
 	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	price_lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	price_lbl.size = Vector2(CELL_SIZE_UI - 4, 16)
-	price_lbl.position = Vector2(2, CELL_SIZE_UI - 18)
+	price_lbl.size = Vector2(CELL_SIZE_UI - 2, 14)
+	price_lbl.position = Vector2(0, CELL_SIZE_UI - 15)
+	price_lbl.z_index = 10
 	cell.add_child(price_lbl)
 
 	# Hover + click handling
