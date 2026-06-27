@@ -66,6 +66,10 @@ const CAM_BASE_SIZE: float = 18.0
 # Isometric offset: 45° Y rotation, ~35° tilt (true iso = 1:1:1)
 var _cam_offset: Vector3 = Vector3(1, 1, 1).normalized() * 25.0
 
+# Middle mouse drag
+var _dragging: bool = false
+var _drag_last_pos: Vector2 = Vector2.ZERO
+
 
 func _ready() -> void:
 	# Đọc meta từ MainMenu (new game hoặc load)
@@ -198,6 +202,17 @@ func _process(delta: float) -> void:
 	right = right.normalized()
 
 	cam_target += (forward * (-input.y) + right * input.x) * CAM_SPEED * delta
+
+	# Middle mouse drag — di chuyển camera theo chuột
+	if _dragging:
+		var mouse_pos := get_viewport().get_mouse_position()
+		var delta_mouse := mouse_pos - _drag_last_pos
+		# Chuyển delta screen → world space trên mặt phẳng XZ
+		# Camera nhìn xuống ~35°, drag sang phải = move right, drag xuống = move forward
+		cam_target -= right * delta_mouse.x * 0.05
+		cam_target += forward * delta_mouse.y * 0.05
+		_drag_last_pos = mouse_pos
+
 	cam_target_smooth = cam_target_smooth.lerp(cam_target, CAM_SMOOTH * delta)
 
 	# Smooth zoom
@@ -376,6 +391,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			zoom = clampf(zoom - ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom = clampf(zoom + ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX)
+		# Middle mouse drag — bắt đầu/kết thúc drag
+		elif event.button_index == MOUSE_BUTTON_MIDDLE:
+			if event.pressed:
+				_dragging = true
+				_drag_last_pos = get_viewport().get_mouse_position()
+			else:
+				_dragging = false
 
 	# ESC → quay lại main menu (hoặc hủy build mode)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
