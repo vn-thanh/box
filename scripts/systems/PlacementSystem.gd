@@ -78,6 +78,9 @@ static func confirm_place() -> Building3D:
 	bld.global_position = pos
 	_buildings.append(bld)
 	PathfindingSystem.add_building(bld)
+	# Đường: xóa decor (cây/cỏ/hoa/đá) nằm trong footprint
+	if bld.building_type == Building3D.Type.ROAD:
+		_clear_decor_in_footprint(pos, 2.0)
 	# Callback
 	if _on_placed.is_valid():
 		_on_placed.call(bld)
@@ -126,4 +129,27 @@ static func get_build_options() -> Array[Dictionary]:
 		{ "type": Building3D.Type.HOSPITAL, "name": "Bệnh viện", "slots": 3, "icon": "🏥" },
 		{ "type": Building3D.Type.SCHOOL, "name": "Trường học", "slots": 2, "icon": "🏫" },
 		{ "type": Building3D.Type.HOUSE, "name": "Nhà ở", "slots": 0, "icon": "🏠" },
+		{ "type": Building3D.Type.ROAD, "name": "Đường", "slots": 0, "icon": "🛤️" },
 	]
+
+
+## Xóa decor (cây/cỏ/hoa/đá) nằm trong bán kính footprint khi đặt đường
+static func _clear_decor_in_footprint(pos: Vector3, radius: float) -> void:
+	if not _parent:
+		return
+	var world_gen := _parent.get_node_or_null("WorldGenerator")
+	if not world_gen:
+		return
+	var to_remove: Array = []
+	for child in world_gen.get_children():
+		if not (child is Node3D):
+			continue
+		var decor := child as Node3D
+		# Chỉ xóa decor có tên Tree / Flower / GrassClump / Rock
+		var name := decor.name
+		if not (name == "Tree" or name == "Flower" or name == "GrassClump" or name == "Rock"):
+			continue
+		if decor.global_position.distance_to(Vector3(pos.x, 0, pos.z)) <= radius:
+			to_remove.append(decor)
+	for d in to_remove:
+		d.queue_free()

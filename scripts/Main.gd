@@ -22,6 +22,7 @@ var building_scene: PackedScene = preload("res://scenes/Building.tscn")
 @onready var btn_hospital: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHospital
 @onready var btn_school: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSchool
 @onready var btn_house: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHouse
+@onready var btn_road: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnRoad
 @onready var cancel_btn: Button = $CanvasLayer/BuildToolbar/CancelBtn
 @onready var bld_info_panel: Panel = $CanvasLayer/BuildingInfoPanel
 @onready var bld_name_label: Label = $CanvasLayer/BuildingInfoPanel/BldNameLabel
@@ -112,6 +113,7 @@ func _ready() -> void:
 	btn_hospital.pressed.connect(func(): _start_build(Building3D.Type.HOSPITAL))
 	btn_school.pressed.connect(func(): _start_build(Building3D.Type.SCHOOL))
 	btn_house.pressed.connect(func(): _start_build(Building3D.Type.HOUSE))
+	btn_road.pressed.connect(func(): _start_build(Building3D.Type.ROAD))
 	cancel_btn.pressed.connect(_cancel_build)
 
 

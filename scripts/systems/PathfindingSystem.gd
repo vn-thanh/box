@@ -34,6 +34,9 @@ static func init_grid(world_size: float, water_areas: Array, buildings: Array) -
 		var bld := b as Building3D
 		if not bld:
 			continue
+		# Đường không block grid
+		if bld.building_type == Building3D.Type.ROAD:
+			continue
 		var bx := int(round(bld.global_position.x / CELL_SIZE))
 		var bz := int(round(bld.global_position.z / CELL_SIZE))
 		for x in range(bx - bld.grid_w, bx + bld.grid_w + 1):
@@ -43,6 +46,9 @@ static func init_grid(world_size: float, water_areas: Array, buildings: Array) -
 
 ## Thêm 1 công trình vào grid (sau khi đặt mới)
 static func add_building(bld: Building3D) -> void:
+	# Đường không block grid — NPC đi qua được
+	if bld.building_type == Building3D.Type.ROAD:
+		return
 	var bx := int(round(bld.global_position.x / CELL_SIZE))
 	var bz := int(round(bld.global_position.z / CELL_SIZE))
 	for x in range(bx - bld.grid_w, bx + bld.grid_w + 1):
@@ -60,9 +66,13 @@ static func can_place(pos: Vector3, water_areas: Array, buildings: Array, grid_w
 	if WaterGen.is_in_water(pos, water_areas, float(maxi(grid_w, grid_h))):
 		return false
 	# Check building khác (overlap footprint)
+	# Đường không cản trở placement — có thể đặt building cạnh/kề road
 	for b in buildings:
 		var bld := b as Building3D
 		if not bld:
+			continue
+		# Bỏ qua overlap với road — road là tile nền, không cản
+		if bld.building_type == Building3D.Type.ROAD:
 			continue
 		var dx: float = abs(pos.x - bld.global_position.x)
 		var dz: float = abs(pos.z - bld.global_position.z)

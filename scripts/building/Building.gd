@@ -5,7 +5,7 @@ class_name Building3D
 ## Mỗi loại công trình có builder riêng trong scripts/building/
 ## Đặt bởi PlacementSystem (grid snap), lưu trong Main._buildings
 
-enum Type { SAWMILL, CHURCH, HOSPITAL, SCHOOL, HOUSE }
+enum Type { SAWMILL, CHURCH, HOSPITAL, SCHOOL, HOUSE, ROAD }
 
 @export var building_type: Type = Type.SAWMILL
 @export var job_slots: int = 2
@@ -93,6 +93,8 @@ func _build_mesh() -> void:
 			SchoolBuilder.build(self)
 		Type.HOUSE:
 			HouseBuilder.build(self)
+		Type.ROAD:
+			RoadBuilder.build(self)
 
 
 # ============================================================
@@ -218,7 +220,7 @@ func _build_shell(w: float, h: float, d: float, wall_mat: Material, roof_mat: Ma
 # ============================================================
 
 func _add_label() -> void:
-	if building_type == Type.HOUSE:
+	if building_type == Type.HOUSE or building_type == Type.ROAD:
 		return
 	_label = Label3D.new()
 	_label.text = _type_name() + " 0/%d" % job_slots
@@ -251,6 +253,7 @@ func _type_name() -> String:
 		Type.HOSPITAL: return "Bệnh viện"
 		Type.SCHOOL: return "Trường học"
 		Type.HOUSE: return "Nhà ở"
+		Type.ROAD: return "Đường"
 		_: return "Công trình"
 
 

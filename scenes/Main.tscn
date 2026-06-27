@@ -202,6 +202,10 @@ text = "🏫 Trường học (2 giáo viên)"
 layout_mode = 2
 text = "🏠 Nhà ở"
 
+[node name="BtnRoad" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
+layout_mode = 2
+text = "🛤️ Đường"
+
 [node name="CancelBtn" type="Button" parent="CanvasLayer/BuildToolbar"]
 offset_left = 8.0
 offset_top = 148.0
