@@ -38,7 +38,7 @@ func list_saves() -> Array[Dictionary]:
 	return saves
 
 ## Lưu game state hiện tại
-func save_game(world_name: String, world_size: float, npc_data: Array) -> bool:
+func save_game(world_name: String, world_size: float, npc_data: Array, building_data: Array = []) -> bool:
 	var safe_name := _sanitize_name(world_name)
 	if safe_name.is_empty():
 		safe_name = "World"
@@ -50,6 +50,7 @@ func save_game(world_name: String, world_size: float, npc_data: Array) -> bool:
 		"save_time": Time.get_unix_time_from_system(),
 		"npc_count": npc_data.size(),
 		"npcs": npc_data,
+		"buildings": building_data,
 	}
 
 	var file := FileAccess.open(path, FileAccess.WRITE)

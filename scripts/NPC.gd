@@ -27,6 +27,15 @@ var age: int = 25
 var gender: String = "male"
 var body_scale: float = 1.0
 
+# --- Job / Role ---
+enum JobType { NONE, GATHERER, LUMBERJACK, MASON, FARMER }
+var job: JobType = JobType.NONE:
+	set(v):
+		if job != v:
+			job = v
+			_update_job_label()
+var workplace: Building3D = null  # công trình đang làm việc
+
 # --- Humanoid skeleton ---
 var skeleton: Node3D
 var bone_hips: Node3D
@@ -37,6 +46,7 @@ var bone_arm_r: Node3D
 var bone_leg_l: Node3D
 var bone_leg_r: Node3D
 var _name_label: Label3D
+var _job_label: Label3D
 
 # --- Animation ---
 var _walk_phase: float = 0.0
@@ -49,6 +59,13 @@ var _idle_offset: float = 0.0
 var _wander_timer: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
 var _speed: float = 2.0
+
+# --- Pathfinding (job commute) ---
+var _path: Array = []
+var _path_idx: int = 0
+var _commute_state: int = 0  # 0=idle, 1=going to work, 2=working, 3=returning
+var _work_timer: float = 0.0
+const WORK_DURATION: float = 8.0
 
 # Vùng nước — NPC tránh đi vào (set bởi Main sau khi world gen)
 var water_areas: Array = []
@@ -259,6 +276,8 @@ func _add_name_label() -> void:
 	else:
 		_name_label.visible = false
 		add_child(_name_label)
+		# Job label nhỏ hơn bên dưới
+		_add_job_label()
 
 
 func _update_focus_visual() -> void:
@@ -272,6 +291,8 @@ func _update_focus_visual() -> void:
 				_name_label.modulate = Color(1.0, 0.5, 0.65, 1)
 			else:
 				_name_label.modulate = Color(0.8, 0.9, 1.0, 1)
+	if _job_label:
+		_job_label.visible = focused
 	for mi in _meshes:
 		var mat := mi.material_override as StandardMaterial3D
 		if mat:
@@ -312,6 +333,15 @@ func _physics_process(delta: float) -> void:
 	if preview:
 		_update_visuals(delta)
 		return
+
+	# Nếu có workplace → commuter logic thay thế wander
+	if workplace and _commute_state > 0:
+		_commute_update(delta)
+		move_and_slide()
+		_update_face(delta)
+		_update_visuals(delta)
+		return
+
 	_wander_timer -= delta
 	if _wander_timer <= 0:
 		_pick_new_wander()
@@ -342,6 +372,73 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_face(delta)
 	_update_visuals(delta)
+
+
+## Bắt đầu đi làm — tìm path đến workplace
+func go_to_work() -> void:
+	if not workplace:
+		return
+	_last_home_pos = global_position
+	var goal := workplace.get_entrance()
+	_path = PathfindingSystem.find_path(global_position, goal)
+	_path_idx = 0
+	_commute_state = 1
+	_is_moving = true
+
+
+## Trở về nhà (vị trí cũ trước khi đi làm)
+func return_home() -> void:
+	# Lưu vị trí "nhà" khi bắt đầu đi làm — dùng last_home_pos
+	_path = PathfindingSystem.find_path(global_position, _last_home_pos)
+	_path_idx = 0
+	_commute_state = 3
+	_is_moving = true
+
+
+var _last_home_pos: Vector3 = Vector3.ZERO
+
+
+## Cập nhật commuter state machine
+func _commute_update(delta: float) -> void:
+	match _commute_state:
+		1:  # going to work
+			if _follow_path(delta):
+				_commute_state = 2
+				_work_timer = WORK_DURATION
+				_is_moving = false
+				velocity = Vector3.ZERO
+		2:  # working
+			_work_timer -= delta
+			velocity = Vector3.ZERO
+			_is_moving = false
+			if _work_timer <= 0:
+				return_home()
+		3:  # returning
+			if _follow_path(delta):
+				_commute_state = 0
+				_is_moving = false
+				velocity = Vector3.ZERO
+				# Quay lại wander sau khi về nhà
+				_pick_new_wander()
+
+
+## Theo path, trả về true khi đến đích
+func _follow_path(delta: float) -> bool:
+	if _path_idx >= _path.size():
+		return true
+	var target: Vector3 = _path[_path_idx]
+	target.y = global_position.y
+	var to_target := target - global_position
+	var dist := to_target.length()
+	if dist < 0.5:
+		_path_idx += 1
+		if _path_idx >= _path.size():
+			return true
+		return false
+	var dir := to_target.normalized()
+	velocity = dir * _speed
+	_is_moving = true
+	return false
 
 
 func _pick_new_wander() -> void:
@@ -405,3 +502,37 @@ func _update_visuals(delta: float) -> void:
 		else:
 			bob = sin(Time.get_ticks_msec() * 0.002 + _idle_offset) * 0.01
 		bone_torso.position.y = lerpf(bone_torso.position.y, bob, 0.2)
+
+
+func _add_job_label() -> void:
+	_job_label = Label3D.new()
+	_job_label.font_size = 28
+	_job_label.outline_size = 6
+	_job_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_job_label.pixel_size = 0.012
+	_job_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_job_label.no_depth_test = true
+	_job_label.position = Vector3(0, body_scale * 2.5 - 0.15, 0)
+	_job_label.visible = false
+	add_child(_job_label)
+	_update_job_label()
+
+
+func _update_job_label() -> void:
+	if not _job_label:
+		return
+	var text := ""
+	match job:
+		JobType.GATHERER: text = "Hái lượm"
+		JobType.LUMBERJACK: text = "Thợ gỗ"
+		JobType.MASON: text = "Thợ đá"
+		JobType.FARMER: text = "Nông dân"
+		_: text = ""
+	_job_label.text = text
+	# Màu theo job
+	match job:
+		JobType.GATHERER: _job_label.modulate = Color(0.7, 0.8, 0.5)
+		JobType.LUMBERJACK: _job_label.modulate = Color(0.9, 0.6, 0.3)
+		JobType.MASON: _job_label.modulate = Color(0.6, 0.6, 0.65)
+		JobType.FARMER: _job_label.modulate = Color(0.5, 0.7, 0.4)
+		_: _job_label.modulate = Color(0.5, 0.5, 0.5)

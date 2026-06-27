@@ -149,3 +149,99 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Tuổi: 0 • Nam"
+
+[node name="JobLabel" type="Label" parent="CanvasLayer/InfoPanel/HBox/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Nghề: Thất nghiệp"
+
+[node name="BuildToolbar" type="Panel" parent="CanvasLayer"]
+visible = false
+offset_left = 16.0
+offset_top = 186.0
+offset_right = 316.0
+offset_bottom = 326.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/BuildToolbar"]
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 292.0
+offset_bottom = 26.0
+theme_override_font_sizes/font_size = 14
+text = "Chọn công trình để xây"
+
+[node name="BtnScroll" type="ScrollContainer" parent="CanvasLayer/BuildToolbar"]
+offset_left = 8.0
+offset_top = 30.0
+offset_right = 292.0
+offset_bottom = 100.0
+
+[node name="BtnVBox" type="VBoxContainer" parent="CanvasLayer/BuildToolbar/BtnScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BtnSawmill" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
+layout_mode = 2
+text = "🪵 Xưởng gỗ (2 thợ)"
+
+[node name="BtnQuarry" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
+layout_mode = 2
+text = "⛏️ Mỏ đá (2 thợ)"
+
+[node name="BtnFarm" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
+layout_mode = 2
+text = "🌾 Trại nông (3 thợ)"
+
+[node name="BtnHouse" type="Button" parent="CanvasLayer/BuildToolbar/BtnScroll/BtnVBox"]
+layout_mode = 2
+text = "🏠 Nhà ở"
+
+[node name="CancelBtn" type="Button" parent="CanvasLayer/BuildToolbar"]
+offset_left = 8.0
+offset_top = 108.0
+offset_right = 292.0
+offset_bottom = 132.0
+text = "Hủy (ESC)"
+
+[node name="BuildHint" type="Label" parent="CanvasLayer/BuildToolbar"]
+offset_left = 8.0
+offset_top = 136.0
+offset_right = 292.0
+offset_bottom = 160.0
+theme_override_font_sizes/font_size = 12
+text = "Click để đặt • Xanh=OK, Đỏ=không"
+
+[node name="BuildingInfoPanel" type="Panel" parent="CanvasLayer"]
+visible = false
+offset_left = 16.0
+offset_top = 340.0
+offset_right = 316.0
+offset_bottom = 430.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="BldNameLabel" type="Label" parent="CanvasLayer/BuildingInfoPanel"]
+offset_left = 10.0
+offset_top = 8.0
+offset_right = 290.0
+offset_bottom = 30.0
+theme_override_font_sizes/font_size = 18
+text = "Công trình"
+
+[node name="BldSlotsLabel" type="Label" parent="CanvasLayer/BuildingInfoPanel"]
+offset_left = 10.0
+offset_top = 32.0
+offset_right = 290.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 14
+text = "Thợ: 0/2"
+
+[node name="BldWorkersLabel" type="Label" parent="CanvasLayer/BuildingInfoPanel"]
+offset_left = 10.0
+offset_top = 58.0
+offset_right = 290.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 13
+text = "Danh sách thợ:"
+autowrap_mode = 3

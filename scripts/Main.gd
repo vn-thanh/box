@@ -1,6 +1,7 @@
 extends Node3D
 
 var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
+var building_scene: PackedScene = preload("res://scenes/Building.tscn")
 
 @onready var camera: Camera3D = $Camera3D
 @onready var ground_mesh: MeshInstance3D = $Ground/GroundMesh
@@ -10,13 +11,32 @@ var npc_scene: PackedScene = preload("res://scenes/NPC.tscn")
 @onready var info_panel: Panel = $CanvasLayer/InfoPanel
 @onready var info_name: Label = $CanvasLayer/InfoPanel/HBox/InfoVBox/NameLabel
 @onready var info_details: Label = $CanvasLayer/InfoPanel/HBox/InfoVBox/DetailsLabel
+@onready var info_job: Label = $CanvasLayer/InfoPanel/HBox/InfoVBox/JobLabel
 @onready var portrait_vp: SubViewport = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP
 @onready var portrait_cam: Camera3D = $CanvasLayer/InfoPanel/HBox/Portrait/PortraitVP/Cam
+
+# Build mode UI
+@onready var build_toolbar: Panel = $CanvasLayer/BuildToolbar
+@onready var btn_sawmill: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnSawmill
+@onready var btn_quarry: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnQuarry
+@onready var btn_farm: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnFarm
+@onready var btn_house: Button = $CanvasLayer/BuildToolbar/BtnScroll/BtnVBox/BtnHouse
+@onready var cancel_btn: Button = $CanvasLayer/BuildToolbar/CancelBtn
+@onready var bld_info_panel: Panel = $CanvasLayer/BuildingInfoPanel
+@onready var bld_name_label: Label = $CanvasLayer/BuildingInfoPanel/BldNameLabel
+@onready var bld_slots_label: Label = $CanvasLayer/BuildingInfoPanel/BldSlotsLabel
+@onready var bld_workers_label: Label = $CanvasLayer/BuildingInfoPanel/BldWorkersLabel
 
 # Hover/selected NPC state
 var _hovered_npc: NPC3D = null
 var _selected_npc: NPC3D = null
 var _portrait_npc: NPC3D = null  # clone currently shown in portrait
+
+# Selected building state
+var _selected_building: Building3D = null
+
+# Danh sách công trình
+var _buildings: Array = []
 
 const NPC_COUNT: int = 8
 
@@ -77,8 +97,20 @@ func _ready() -> void:
 
 	if _is_loaded_game:
 		_load_npcs()
+		_load_buildings()
 	else:
 		_spawn_npcs()
+
+	# Khởi tạo pathfinding grid
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
+	PathfindingSystem.init_grid(world_size, water_areas, _buildings)
+
+	# Connect build toolbar buttons
+	btn_sawmill.pressed.connect(func(): _start_build(Building3D.Type.SAWMILL))
+	btn_quarry.pressed.connect(func(): _start_build(Building3D.Type.QUARRY))
+	btn_farm.pressed.connect(func(): _start_build(Building3D.Type.FARM))
+	btn_house.pressed.connect(func(): _start_build(Building3D.Type.HOUSE))
+	cancel_btn.pressed.connect(_cancel_build)
 
 
 func _spawn_npcs() -> void:
@@ -116,6 +148,39 @@ func _load_npcs() -> void:
 		)
 		npc.world_bounds = world_size * 0.45
 		npc.water_areas = water_areas
+
+
+func _load_buildings() -> void:
+	var building_data: Array = _load_data.get("buildings", [])
+	for bdata in building_data:
+		var bld := building_scene.instantiate() as Building3D
+		bld.building_type = int(bdata.get("type", 0))
+		bld.job_slots = int(bdata.get("job_slots", 2))
+		add_child(bld)
+		bld.global_position = Vector3(
+			float(bdata.get("pos_x", 0.0)),
+			0,
+			float(bdata.get("pos_z", 0.0))
+		)
+		bld.rotation.y = float(bdata.get("rot_y", 0.0))
+		_buildings.append(bld)
+	# Gán lại NPC vào building theo save data
+	var npc_list: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			npc_list.append(child)
+	for bdata in building_data:
+		var worker_names: Array = bdata.get("workers", [])
+		for bld in _buildings:
+			var b := bld as Building3D
+			if not b:
+				continue
+			for wname in worker_names:
+				for npc_child in npc_list:
+					var npc := npc_child as NPC3D
+					if npc and npc.npc_name == wname:
+						b.assign_worker(npc)
+						break
 
 
 func _process(delta: float) -> void:
@@ -157,7 +222,10 @@ func _process(delta: float) -> void:
 	camera.look_at(cam_target_smooth, Vector3.UP)
 
 	# Hover detection via mouse raycast
-	_update_hover()
+	if not PlacementSystem.is_active():
+		_update_hover()
+	else:
+		PlacementSystem.update(get_viewport().get_mouse_position())
 
 
 func _update_hover() -> void:
@@ -198,6 +266,7 @@ func _show_npc_info(npc: NPC3D) -> void:
 	info_name.text = npc.npc_name
 	var g_text := "Nữ" if npc.gender == "female" else "Nam"
 	info_details.text = "Tuổi: %d • %s" % [npc.age, g_text]
+	info_job.text = "Nghề: %s" % JobSystem.job_name(npc.job)
 	_swap_portrait(npc)
 	info_panel.visible = true
 
@@ -234,21 +303,60 @@ func _clear_portrait() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Build mode: click để đặt công trình
+	if PlacementSystem.is_active():
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			var bld := PlacementSystem.confirm_place()
+			if bld:
+				print("[Build] Placed %s at %s" % [bld.get_type_name(), bld.global_position])
+				# Auto-assign NPC vào building mới
+				_auto_assign_workers()
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_cancel_build()
+		return
+
 	# Click to select NPC (left button)
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		if _hovered_npc:
-			# Deselect previous
+			# Deselect previous NPC
 			if _selected_npc:
 				_selected_npc.selected = false
+			# Deselect previous building
+			if _selected_building:
+				_selected_building = null
+				bld_info_panel.visible = false
 			_selected_npc = _hovered_npc
 			_selected_npc.selected = true
 			_show_npc_info(_selected_npc)
 		else:
-			# Click empty space → deselect
-			if _selected_npc:
-				_selected_npc.selected = false
-				_selected_npc = null
-			_hide_npc_info()
+			# Click building?
+			var clicked_bld := _pick_building()
+			if clicked_bld:
+				if _selected_npc:
+					_selected_npc.selected = false
+					_selected_npc = null
+					_hide_npc_info()
+				_selected_building = clicked_bld
+				_show_building_info(clicked_bld)
+			else:
+				# Click empty space → deselect all
+				if _selected_npc:
+					_selected_npc.selected = false
+					_selected_npc = null
+				if _selected_building:
+					_selected_building = null
+				_hide_npc_info()
+				bld_info_panel.visible = false
+
+	# B → toggle build toolbar
+	if event is InputEventKey and event.pressed and event.keycode == KEY_B:
+		build_toolbar.visible = not build_toolbar.visible
+		if not build_toolbar.visible:
+			_cancel_build()
+
+	# A → auto-assign (debug/test)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_A:
+		_auto_assign_workers()
 
 	# Scroll wheel zoom
 	if event is InputEventMouseButton:
@@ -257,7 +365,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom = clampf(zoom + ZOOM_SPEED, ZOOM_MIN, ZOOM_MAX)
 
-	# ESC → quay lại main menu
+	# ESC → quay lại main menu (hoặc hủy build mode)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_save_and_quit_to_menu()
 
@@ -266,20 +374,91 @@ func _unhandled_input(event: InputEvent) -> void:
 		_save_current_game()
 
 
+# --- Build mode ---
+
+func _start_build(type: int) -> void:
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
+	PlacementSystem.start_build(self, camera, type, water_areas, _buildings, _on_building_placed)
+
+
+func _cancel_build() -> void:
+	PlacementSystem.cancel()
+
+
+func _on_building_placed(bld: Building3D) -> void:
+	# Called after a building is placed
+	pass
+
+
+func _auto_assign_workers() -> void:
+	var npcs: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			npcs.append(child)
+	JobSystem.auto_assign(npcs, _buildings)
+	# Trigger NPC đi làm
+	for child in get_children():
+		var npc := child as NPC3D
+		if npc and npc.workplace and npc._commute_state == 0:
+			npc.go_to_work()
+	if _selected_building:
+		_show_building_info(_selected_building)
+
+
+func _pick_building() -> Building3D:
+	var mouse_pos := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var dir := camera.project_ray_normal(mouse_pos)
+	var closest: Building3D = null
+	var closest_dist: float = INF
+	for bld in _buildings:
+		var b := bld as Building3D
+		if not b:
+			continue
+		# Check ray vs box at building pos (approx 3x3 area)
+		var center := b.global_position + Vector3(0, 1.0, 0)
+		var oc := from - center
+		var bb := oc.dot(dir)
+		var cc := oc.dot(oc) - 4.0  # radius ~2
+		var h := bb * bb - cc
+		if h > 0.0:
+			var t := -bb - sqrt(h)
+			if t > 0.0 and t < closest_dist:
+				closest_dist = t
+				closest = b
+	return closest
+
+
+func _show_building_info(bld: Building3D) -> void:
+	bld_name_label.text = bld.get_type_name()
+	bld_slots_label.text = "Thợ: %d/%d" % [bld.workers.size(), bld.job_slots]
+	var names := bld.workers.map(func(w): return w.npc_name)
+	bld_workers_label.text = "Danh sách thợ:\n" + "\n".join(names) if names.size() > 0 else "Chưa có thợ"
+	bld_info_panel.visible = true
+	_hide_npc_info()
+
+
 func _save_current_game() -> void:
 	var npc_data: Array = []
 	for child in get_children():
 		if child is NPC3D:
+			var npc := child as NPC3D
 			npc_data.append({
-				"name": child.npc_name,
-				"age": child.age,
-				"gender": child.gender,
-				"pos_x": child.global_position.x,
-				"pos_z": child.global_position.z,
+				"name": npc.npc_name,
+				"age": npc.age,
+				"gender": npc.gender,
+				"pos_x": npc.global_position.x,
+				"pos_z": npc.global_position.z,
+				"job": npc.job,
 			})
-	var ok := SaveSystem.save_game(world_name, world_size, npc_data)
+	var building_data: Array = []
+	for bld in _buildings:
+		var b := bld as Building3D
+		if b:
+			building_data.append(b.to_dict())
+	var ok := SaveSystem.save_game(world_name, world_size, npc_data, building_data)
 	if ok:
-		print("[Save] Saved world '%s' (%d NPCs)" % [world_name, npc_data.size()])
+		print("[Save] Saved world '%s' (%d NPCs, %d buildings)" % [world_name, npc_data.size(), building_data.size()])
 	else:
 		push_error("[Save] Failed to save world '%s'" % world_name)
 
