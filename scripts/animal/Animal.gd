@@ -55,7 +55,6 @@ func _build_body() -> void:
 		Type.RABBIT:
 			RabbitBuilder.build(self)
 
-
 # ============================================================
 # HELPERS — dùng chung cho builder
 # ============================================================
@@ -77,7 +76,6 @@ func _mat(color: Color, rough: float = 0.9) -> StandardMaterial3D:
 	m.roughness = rough
 	return m
 
-
 # ============================================================
 # PROCESS — wander + animation
 # ============================================================
@@ -88,7 +86,6 @@ func _process(delta: float) -> void:
 		_pick_new_wander()
 
 	var pos := global_position
-
 	if animal_type == Type.BIRD:
 		_process_bird(delta, pos)
 	else:
@@ -105,23 +102,9 @@ func _process_bird(delta: float, pos: Vector3) -> void:
 		_wing_l.rotation.z = flap
 	if _wing_r:
 		_wing_r.rotation.z = -flap
-
-	# Bounce off world bounds
-	if abs(pos.x) > world_bounds:
-		pos.x = clampf(pos.x, -world_bounds, world_bounds)
-		_wander_dir.x *= -1
-	if abs(pos.z) > world_bounds:
-		pos.z = clampf(pos.z, -world_bounds, world_bounds)
-		_wander_dir.z *= -1
-
+	_bounce_bounds(pos)
 	global_position = pos
-
-	if _wander_dir.length_squared() > 0.1:
-		var target := atan2(_wander_dir.x, _wander_dir.z)
-		var diff := angle_difference(_face_angle, target)
-		_face_angle += diff * 0.1
-	if _skeleton:
-		_skeleton.rotation.y = _face_angle
+	_update_face()
 
 
 func _process_rabbit(delta: float, pos: Vector3) -> void:
@@ -136,15 +119,7 @@ func _process_rabbit(delta: float, pos: Vector3) -> void:
 		var ear_wobble := sin(_hop_phase) * 0.15
 		_ear_l.rotation.x = ear_wobble
 		_ear_r.rotation.x = ear_wobble
-
-	# Bounce off world bounds
-	if abs(pos.x) > world_bounds:
-		pos.x = clampf(pos.x, -world_bounds, world_bounds)
-		_wander_dir.x *= -1
-	if abs(pos.z) > world_bounds:
-		pos.z = clampf(pos.z, -world_bounds, world_bounds)
-		_wander_dir.z *= -1
-
+	_bounce_bounds(pos)
 	# Thỏ tránh nước
 	if water_areas.size() > 0:
 		if WaterGen.is_in_water(pos, water_areas, 0.5):
@@ -155,9 +130,22 @@ func _process_rabbit(delta: float, pos: Vector3) -> void:
 		elif WaterGen.is_in_water(pos + _wander_dir * 2.0, water_areas, 0.5):
 			_is_moving = false
 			_wander_timer = 0.0
-
 	global_position = pos
+	_update_face()
 
+
+## Bounce off world bounds — giữ động vật trong vùng
+func _bounce_bounds(pos: Vector3) -> void:
+	if abs(pos.x) > world_bounds:
+		pos.x = clampf(pos.x, -world_bounds, world_bounds)
+		_wander_dir.x *= -1
+	if abs(pos.z) > world_bounds:
+		pos.z = clampf(pos.z, -world_bounds, world_bounds)
+		_wander_dir.z *= -1
+
+
+## Smoothly rotate skeleton toward wander direction
+func _update_face() -> void:
 	if _wander_dir.length_squared() > 0.1:
 		var target := atan2(_wander_dir.x, _wander_dir.z)
 		var diff := angle_difference(_face_angle, target)

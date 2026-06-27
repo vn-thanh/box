@@ -155,9 +155,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Nghề: Thất nghiệp"
 
-[node name="BuildToolbar" type="Control" parent="CanvasLayer"]
-visible = false
-
 [node name="BuildingInfoPanel" type="Panel" parent="CanvasLayer"]
 visible = false
 offset_left = 16.0

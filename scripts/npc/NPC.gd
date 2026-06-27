@@ -3,7 +3,7 @@ class_name NPC3D
 
 @export var world_bounds: float = 35.0
 
-# --- Focus state (set by Main via raycast) ---
+# Focus state (set by Main via raycast)
 var hovered: bool = false:
 	set(v):
 		if hovered != v:
@@ -15,28 +15,27 @@ var selected: bool = false:
 			selected = v
 			_update_focus_visual()
 
-# All mesh instances for outline/emissive toggle
 var _meshes: Array[MeshInstance3D] = []
 
-# --- Portrait mode (used by info panel SubViewport) ---
+# Portrait mode (used by info panel SubViewport)
 var preview: bool = false
 
-# --- Character identity ---
+# Character identity
 var npc_name: String = ""
 var age: int = 25
 var gender: String = "male"
 var body_scale: float = 1.0
 
-# --- Job / Role ---
+# Job / Role
 enum JobType { NONE, GATHERER, LUMBERJACK, PRIEST, DOCTOR, TEACHER }
 var job: JobType = JobType.NONE:
 	set(v):
 		if job != v:
 			job = v
 			_update_job_label()
-var workplace: Building3D = null  # công trình đang làm việc
+var workplace: Building3D = null
 
-# --- Humanoid skeleton ---
+# Humanoid skeleton
 var skeleton: Node3D
 var bone_hips: Node3D
 var bone_torso: Node3D
@@ -48,23 +47,24 @@ var bone_leg_r: Node3D
 var _name_label: Label3D
 var _job_label: Label3D
 
-# --- Animation ---
+# Animation
 var _walk_phase: float = 0.0
 var _walk_amp: float = 0.0
 var _is_moving: bool = false
 var _face_angle: float = 0.0
 var _idle_offset: float = 0.0
 
-# --- Wander AI ---
+# Wander AI
 var _wander_timer: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
 var _speed: float = 2.0
 
-# --- Pathfinding (job commute) ---
+# Pathfinding (job commute)
 var _path: Array = []
 var _path_idx: int = 0
 var _commute_state: int = 0  # 0=idle, 1=going to work, 2=working, 3=returning
 var _work_timer: float = 0.0
+var _last_home_pos: Vector3 = Vector3.ZERO
 const WORK_DURATION: float = 8.0
 
 # Vùng nước — NPC tránh đi vào (set bởi Main sau khi world gen)
@@ -74,6 +74,15 @@ var water_areas: Array = []
 const SURNAMES := ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Wilson", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White", "Harris", "Clark", "Lewis", "Walker", "Hall", "Allen", "Young", "King", "Wright", "Hill"]
 const MALE_NAMES := ["James", "John", "Robert", "Michael", "William", "David", "Joseph", "Charles", "Thomas", "Daniel", "Matthew", "Andrew", "Christopher", "Anthony", "Mark", "Steven", "Paul", "Andrew", "Joshua", "Kenneth", "Kevin", "Brian", "George", "Edward", "Ronald", "Timothy", "Jason", "Jeffrey", "Ryan"]
 const FEMALE_NAMES := ["Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen", "Lisa", "Nancy", "Betty", "Margaret", "Sandra", "Ashley", "Dorothy", "Kimberly", "Emily", "Donna", "Michelle", "Carol", "Amanda", "Melissa", "Deborah", "Stephanie", "Rebecca", "Laura", "Sharon"]
+
+
+const JOB_INFO: Dictionary = {
+	NPC3D.JobType.GATHERER: {name = "Hái lượm", color = Color(0.7, 0.8, 0.5)},
+	NPC3D.JobType.LUMBERJACK: {name = "Thợ gỗ", color = Color(0.9, 0.6, 0.3)},
+	NPC3D.JobType.PRIEST: {name = "Linh mục", color = Color(0.8, 0.75, 0.3)},
+	NPC3D.JobType.DOCTOR: {name = "Bác sĩ", color = Color(0.9, 0.3, 0.3)},
+	NPC3D.JobType.TEACHER: {name = "Giáo viên", color = Color(0.3, 0.5, 0.8)},
+}
 
 
 func _ready() -> void:
@@ -259,9 +268,6 @@ func return_home() -> void:
 	_is_moving = true
 
 
-var _last_home_pos: Vector3 = Vector3.ZERO
-
-
 ## Cập nhật commuter state machine
 func _commute_update(delta: float) -> void:
 	match _commute_state:
@@ -385,20 +391,10 @@ func _add_job_label() -> void:
 func _update_job_label() -> void:
 	if not _job_label:
 		return
-	var text := ""
-	match job:
-		JobType.GATHERER: text = "Hái lượm"
-		JobType.LUMBERJACK: text = "Thợ gỗ"
-		JobType.PRIEST: text = "Linh mục"
-		JobType.DOCTOR: text = "Bác sĩ"
-		JobType.TEACHER: text = "Giáo viên"
-		_: text = ""
-	_job_label.text = text
-	# Màu theo job
-	match job:
-		JobType.GATHERER: _job_label.modulate = Color(0.7, 0.8, 0.5)
-		JobType.LUMBERJACK: _job_label.modulate = Color(0.9, 0.6, 0.3)
-		JobType.PRIEST: _job_label.modulate = Color(0.8, 0.75, 0.3)
-		JobType.DOCTOR: _job_label.modulate = Color(0.9, 0.3, 0.3)
-		JobType.TEACHER: _job_label.modulate = Color(0.3, 0.5, 0.8)
-		_: _job_label.modulate = Color(0.5, 0.5, 0.5)
+	var info: Dictionary = JOB_INFO.get(job, {})
+	if info.is_empty():
+		_job_label.text = ""
+		_job_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		_job_label.text = info.name
+		_job_label.modulate = info.color

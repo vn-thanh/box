@@ -1,14 +1,12 @@
 class_name FlowerGen
-## Sinh hoa dại phong cách Ghibli
-## Tránh vùng nước
-
+## Sinh hoa dại phong cách Ghibli — tránh vùng nước
 
 const FLOWER_COLORS := [
-	Color(1.0, 0.8, 0.3),   # vàng
-	Color(1.0, 0.5, 0.5),   # hồng
-	Color(0.9, 0.6, 1.0),   # tím
-	Color(1.0, 1.0, 0.9),   # trắng
-	Color(1.0, 0.6, 0.3),   # cam
+	Color(1.0, 0.8, 0.3),
+	Color(1.0, 0.5, 0.5),
+	Color(0.9, 0.6, 1.0),
+	Color(1.0, 1.0, 0.9),
+	Color(1.0, 0.6, 0.3),
 ]
 
 
@@ -18,7 +16,6 @@ static func spawn(parent: Node3D, pos: Vector3, color: Color, rng: RandomNumberG
 	flower.name = "Flower"
 	parent.add_child(flower)
 
-	# Thân cây - box mỏng xanh
 	var stem := MeshInstance3D.new()
 	var stem_mesh := BoxMesh.new()
 	stem_mesh.size = Vector3(0.04, 0.35, 0.04)
@@ -30,7 +27,7 @@ static func spawn(parent: Node3D, pos: Vector3, color: Color, rng: RandomNumberG
 	stem.material_override = stem_mat
 	flower.add_child(stem)
 
-	# Cánh hoa - 4 cánh xếp hình chữ thập (box)
+	# 4 cánh xếp hình chữ thập
 	for k in 4:
 		var petal := MeshInstance3D.new()
 		var petal_mesh := BoxMesh.new()
@@ -44,7 +41,7 @@ static func spawn(parent: Node3D, pos: Vector3, color: Color, rng: RandomNumberG
 		petal.material_override = mat
 		flower.add_child(petal)
 
-	# Nhụy - box nhỏ vàng
+	# Nhụy vàng
 	var center := MeshInstance3D.new()
 	var center_mesh := BoxMesh.new()
 	center_mesh.size = Vector3(0.08, 0.08, 0.08)

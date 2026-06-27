@@ -19,16 +19,16 @@ var building_scene: PackedScene = preload("res://scenes/Building.tscn")
 var _fab: Button
 var _build_grid: Control
 var _tooltip: Label
-var _build_cells: Array = []  # Array of Panel cells
+var _build_cells: Array = []
 
 # Building definitions: type, name, price, job_slots
 const BUILD_DEFS: Array = [
-	{type = 0, name = "Xưởng gỗ", price = 100, jobs = 2},   # SAWMILL
-	{type = 1, name = "Nhà thờ", price = 200, jobs = 1},     # CHURCH
-	{type = 2, name = "Bệnh viện", price = 300, jobs = 3},   # HOSPITAL
-	{type = 3, name = "Trường học", price = 150, jobs = 2},  # SCHOOL
-	{type = 4, name = "Nhà ở", price = 80, jobs = 0},        # HOUSE
-	{type = 5, name = "Đường", price = 10, jobs = 0},        # ROAD
+	{type = 0, name = "Xưởng gỗ", price = 100, jobs = 2},
+	{type = 1, name = "Nhà thờ", price = 200, jobs = 1},
+	{type = 2, name = "Bệnh viện", price = 300, jobs = 3},
+	{type = 3, name = "Trường học", price = 150, jobs = 2},
+	{type = 4, name = "Nhà ở", price = 80, jobs = 0},
+	{type = 5, name = "Đường", price = 10, jobs = 0},
 ]
 
 @onready var bld_info_panel: Panel = $CanvasLayer/BuildingInfoPanel
@@ -36,15 +36,10 @@ const BUILD_DEFS: Array = [
 @onready var bld_slots_label: Label = $CanvasLayer/BuildingInfoPanel/BldSlotsLabel
 @onready var bld_workers_label: Label = $CanvasLayer/BuildingInfoPanel/BldWorkersLabel
 
-# Hover/selected NPC state
 var _hovered_npc: NPC3D = null
 var _selected_npc: NPC3D = null
-var _portrait_npc: NPC3D = null  # clone currently shown in portrait
-
-# Selected building state
+var _portrait_npc: NPC3D = null
 var _selected_building: Building3D = null
-
-# Danh sách công trình
 var _buildings: Array = []
 
 const NPC_COUNT: int = 8
@@ -55,7 +50,7 @@ var world_size: float = 80.0
 var _is_loaded_game: bool = false
 var _load_data: Dictionary = {}
 
-# Camera control — WASD pans, scroll zooms
+# Camera control
 var cam_target: Vector3 = Vector3.ZERO
 var cam_target_smooth: Vector3 = Vector3.ZERO
 const CAM_SPEED: float = 35.0
@@ -70,7 +65,7 @@ const ZOOM_SPEED: float = 0.15
 const ZOOM_SMOOTH: float = 8.0
 const CAM_BASE_SIZE: float = 18.0
 
-# Isometric offset: 45° Y rotation, ~35° tilt (true iso = 1:1:1)
+# Isometric offset: 45° Y rotation, ~35° tilt
 var _cam_offset: Vector3 = Vector3(1, 1, 1).normalized() * 25.0
 
 # Middle mouse drag
@@ -464,16 +459,17 @@ func _build_build_ui() -> void:
 	_fab.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	var fab_normal := StyleBoxFlat.new()
 	fab_normal.bg_color = Color(0.2, 0.5, 0.35, 0.9)
-	fab_normal.corner_radius_top_left = int(fab_size / 2)
-	fab_normal.corner_radius_top_right = int(fab_size / 2)
-	fab_normal.corner_radius_bottom_left = int(fab_size / 2)
-	fab_normal.corner_radius_bottom_right = int(fab_size / 2)
+	var cr := int(fab_size / 2)
+	fab_normal.corner_radius_top_left = cr
+	fab_normal.corner_radius_top_right = cr
+	fab_normal.corner_radius_bottom_left = cr
+	fab_normal.corner_radius_bottom_right = cr
 	var fab_hover := StyleBoxFlat.new()
 	fab_hover.bg_color = Color(0.25, 0.6, 0.4, 1.0)
-	fab_hover.corner_radius_top_left = int(fab_size / 2)
-	fab_hover.corner_radius_top_right = int(fab_size / 2)
-	fab_hover.corner_radius_bottom_left = int(fab_size / 2)
-	fab_hover.corner_radius_bottom_right = int(fab_size / 2)
+	fab_hover.corner_radius_top_left = cr
+	fab_hover.corner_radius_top_right = cr
+	fab_hover.corner_radius_bottom_left = cr
+	fab_hover.corner_radius_bottom_right = cr
 	_fab.add_theme_stylebox_override("normal", fab_normal)
 	_fab.add_theme_stylebox_override("hover", fab_hover)
 	_fab.add_theme_stylebox_override("pressed", fab_hover)
@@ -642,16 +638,11 @@ func _build_type_is_road() -> bool:
 
 func _start_build(type: int) -> void:
 	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
-	PlacementSystem.start_build(self, camera, type, water_areas, _buildings, _on_building_placed)
+	PlacementSystem.start_build(self, camera, type, water_areas, _buildings)
 
 
 func _cancel_build() -> void:
 	PlacementSystem.cancel()
-
-
-func _on_building_placed(bld: Building3D) -> void:
-	# Called after a building is placed
-	pass
 
 
 func _auto_assign_workers() -> void:

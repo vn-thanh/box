@@ -1,21 +1,16 @@
 class_name PlacementSystem
 ## Hệ thống đặt công trình: grid snap + ghost preview + click đặt
-## Dùng static methods, state giữ qua biến static nội bộ
 
 const BUILDING_SCENE := preload("res://scenes/Building.tscn")
 const CELL_SIZE: float = 2.0  # grid snap 2 units
 
-# Trạng thái build mode
 static var _active: bool = false
-static var _build_type: int = 0  # Building3D.Type
+static var _build_type: int = 0
 static var _ghost: Building3D = null
 static var _parent: Node3D = null
 static var _camera: Camera3D = null
 static var _water_areas: Array = []
 static var _buildings: Array = []
-
-# UI callback khi đặt xong
-static var _on_placed: Callable = Callable()
 
 # Grid visualization
 static var _grid_node: Node3D = null
@@ -28,13 +23,10 @@ static var just_started: bool = false
 static var _build_rot: float = 0.0
 
 # --- Road drag-build ---
-# Bấm giữ chuột ở điểm đầu, kéo đến điểm cuối, hiện preview đoạn đường
-# Thả tay → đặt toàn bộ road tiles dọc theo L-path (x rồi z hoặc z rồi x)
 static var _road_dragging: bool = false
-static var _road_start: Vector3 = Vector3.ZERO  # grid-snapped world pos
-static var _road_preview: Array = []  # preview tiles
-const ROAD_TILE_SIZE: float = 4.0  # road footprint 4x4
-const ROAD_STEP: float = 2.0  # grid snap step = CELL_SIZE
+static var _road_start: Vector3 = Vector3.ZERO
+static var _road_preview: Array = []
+const ROAD_TILE_SIZE: float = 4.0
 
 
 static func is_active() -> bool:
@@ -42,13 +34,12 @@ static func is_active() -> bool:
 
 
 ## Bắt đầu build mode với loại công trình
-static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_areas: Array, buildings: Array, on_placed: Callable) -> void:
+static func start_build(parent: Node3D, cam: Camera3D, build_type: int, water_areas: Array, buildings: Array) -> void:
 	_parent = parent
 	_camera = cam
 	_build_type = build_type
 	_water_areas = water_areas
 	_buildings = buildings
-	_on_placed = on_placed
 	_active = true
 	_build_rot = 0.0
 	# Lấy world_size từ parent (Main)
@@ -110,9 +101,6 @@ static func confirm_place() -> Building3D:
 	# Đường: xóa decor (cây/cỏ/hoa/đá) nằm trong footprint
 	if bld.building_type == Building3D.Type.ROAD:
 		_clear_decor_in_footprint(pos, 2.0)
-	# Callback
-	if _on_placed.is_valid():
-		_on_placed.call(bld)
 	# Reset ghost cho lần đặt tiếp
 	_ghost.queue_free()
 	_ghost = null
@@ -159,18 +147,6 @@ static func _snap_to_ground(mouse_pos: Vector2) -> Vector3:
 	point.x = round(point.x / CELL_SIZE) * CELL_SIZE
 	point.z = round(point.z / CELL_SIZE) * CELL_SIZE
 	return point
-
-
-## Danh sách loại công trình có thể xây (cho UI toolbar)
-static func get_build_options() -> Array[Dictionary]:
-	return [
-		{ "type": Building3D.Type.SAWMILL, "name": "Xưởng gỗ", "slots": 2, "icon": "🪵" },
-		{ "type": Building3D.Type.CHURCH, "name": "Nhà thờ", "slots": 1, "icon": "⛪" },
-		{ "type": Building3D.Type.HOSPITAL, "name": "Bệnh viện", "slots": 3, "icon": "🏥" },
-		{ "type": Building3D.Type.SCHOOL, "name": "Trường học", "slots": 2, "icon": "🏫" },
-		{ "type": Building3D.Type.HOUSE, "name": "Nhà ở", "slots": 0, "icon": "🏠" },
-		{ "type": Building3D.Type.ROAD, "name": "Đường", "slots": 0, "icon": "🛤️" },
-	]
 
 
 ## Xóa decor (cây/cỏ/hoa/đá) nằm trong bán kính footprint khi đặt đường
@@ -310,8 +286,6 @@ static func finish_road_drag(mouse_pos: Vector2) -> int:
 		_buildings.append(bld)
 		PathfindingSystem.add_building(bld)
 		_clear_decor_in_footprint(tile_pos, 2.0)
-		if _on_placed.is_valid():
-			_on_placed.call(bld)
 		count += 1
 	# Hiện lại ghost cho lần click tiếp theo
 	if _ghost:
@@ -337,30 +311,28 @@ static func _road_path(start: Vector3, end: Vector3) -> Array:
 	var ez := end.z
 	# Nếu thẳng hàng 1 trục → đường thẳng
 	if sx == ex:
-		# Đường dọc Z
 		var z := sz
 		while abs(z - ez) > 0.01:
 			tiles.append(Vector3(sx, 0.04, z))
-			z += sign(ez - sz) * ROAD_STEP
+			z += sign(ez - sz) * CELL_SIZE
 		tiles.append(Vector3(ex, 0.04, ez))
 	elif sz == ez:
-		# Đường ngang X
 		var x := sx
 		while abs(x - ex) > 0.01:
 			tiles.append(Vector3(x, 0.04, sz))
-			x += sign(ex - sx) * ROAD_STEP
+			x += sign(ex - sx) * CELL_SIZE
 		tiles.append(Vector3(ex, 0.04, ez))
 	else:
 		# L-shaped: đi X trước rồi Z
 		var x := sx
 		while abs(x - ex) > 0.01:
 			tiles.append(Vector3(x, 0.04, sz))
-			x += sign(ex - sx) * ROAD_STEP
+			x += sign(ex - sx) * CELL_SIZE
 		tiles.append(Vector3(ex, 0.04, sz))
 		var z := sz
 		while abs(z - ez) > 0.01:
 			tiles.append(Vector3(ex, 0.04, z))
-			z += sign(ez - sz) * ROAD_STEP
+			z += sign(ez - sz) * CELL_SIZE
 		tiles.append(Vector3(ex, 0.04, ez))
 	return tiles
 

@@ -3,34 +3,26 @@ class_name Building3D
 
 ## Công trình phong cách Ghibli — base class với helpers dùng chung
 ## Mỗi loại công trình có builder riêng trong scripts/building/
-## Đặt bởi PlacementSystem (grid snap), lưu trong Main._buildings
 
 enum Type { SAWMILL, CHURCH, HOSPITAL, SCHOOL, HOUSE, ROAD }
 
 @export var building_type: Type = Type.SAWMILL
 @export var job_slots: int = 2
 
-# Khi true, không hiện Label3D tên công trình (dùng cho thumbnail)
-var show_label: bool = true
-
-# NPC đang làm việc ở đây
+var show_label: bool = true  # false cho thumbnail
 var workers: Array[NPC3D] = []
-
-# Vị trí "cửa ra vào" — NPC đi đến đây rồi đi vào làm việc
 var entrance_offset: Vector3 = Vector3(0, 0, 2.0)
-
-# Kích thước footprint trên grid (số cell)
 var grid_w: int = 2
 var grid_h: int = 2
 
 var _meshes: Array[MeshInstance3D] = []
 var _label: Label3D = null
 
-# --- Bảng màu dùng chung (Ghibli warm) ---
+# Bảng màu dùng chung (Ghibli warm)
 const STONE_COL := Color(0.55, 0.50, 0.45)
 const WOOD_DARK := Color(0.35, 0.24, 0.15)
 const GLASS_WARM := Color(0.6, 0.75, 0.55, 0.55)
-const FOUND_H := 0.3  # chiều cao foundation
+const FOUND_H := 0.3
 
 
 func _ready() -> void:
@@ -61,23 +53,15 @@ func assign_worker(npc: NPC3D) -> bool:
 	return true
 
 
-## Gỡ worker
-func remove_worker(npc: NPC3D) -> void:
-	workers.erase(npc)
-	if npc.workplace == self:
-		npc.workplace = null
-	if npc.job == _type_to_job(building_type):
-		npc.job = NPC3D.JobType.NONE
-	_update_label()
-
+const TYPE_JOBS := {
+	Type.SAWMILL: NPC3D.JobType.LUMBERJACK,
+	Type.CHURCH: NPC3D.JobType.PRIEST,
+	Type.HOSPITAL: NPC3D.JobType.DOCTOR,
+	Type.SCHOOL: NPC3D.JobType.TEACHER,
+}
 
 static func _type_to_job(t: Type) -> int:
-	match t:
-		Type.SAWMILL: return NPC3D.JobType.LUMBERJACK
-		Type.CHURCH: return NPC3D.JobType.PRIEST
-		Type.HOSPITAL: return NPC3D.JobType.DOCTOR
-		Type.SCHOOL: return NPC3D.JobType.TEACHER
-		_: return NPC3D.JobType.NONE
+	return TYPE_JOBS.get(t, NPC3D.JobType.NONE)
 
 
 # ============================================================
@@ -86,18 +70,12 @@ static func _type_to_job(t: Type) -> int:
 
 func _build_mesh() -> void:
 	match building_type:
-		Type.SAWMILL:
-			SawmillBuilder.build(self)
-		Type.CHURCH:
-			ChurchBuilder.build(self)
-		Type.HOSPITAL:
-			HospitalBuilder.build(self)
-		Type.SCHOOL:
-			SchoolBuilder.build(self)
-		Type.HOUSE:
-			HouseBuilder.build(self)
-		Type.ROAD:
-			RoadBuilder.build(self)
+		Type.SAWMILL: SawmillBuilder.build(self)
+		Type.CHURCH: ChurchBuilder.build(self)
+		Type.HOSPITAL: HospitalBuilder.build(self)
+		Type.SCHOOL: SchoolBuilder.build(self)
+		Type.HOUSE: HouseBuilder.build(self)
+		Type.ROAD: RoadBuilder.build(self)
 
 
 # ============================================================
@@ -222,6 +200,13 @@ func _build_shell(w: float, h: float, d: float, wall_mat: Material, roof_mat: Ma
 # LABEL
 # ============================================================
 
+const LABEL_HEIGHTS := {
+	Type.CHURCH: 7.0,
+	Type.HOSPITAL: 4.3,
+	Type.SCHOOL: 5.3,
+	Type.SAWMILL: 4.0,
+}
+
 func _add_label() -> void:
 	if building_type == Type.HOUSE or building_type == Type.ROAD:
 		return
@@ -236,13 +221,7 @@ func _add_label() -> void:
 	_label.pixel_size = 0.012
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.no_depth_test = true
-	var label_y := 4.0
-	match building_type:
-		Type.CHURCH: label_y = 7.0
-		Type.HOSPITAL: label_y = 4.3
-		Type.SCHOOL: label_y = 5.3
-		Type.SAWMILL: label_y = 4.0
-	_label.position = Vector3(0, label_y, 0)
+	_label.position = Vector3(0, LABEL_HEIGHTS.get(building_type, 4.0), 0)
 	add_child(_label)
 
 
@@ -251,15 +230,17 @@ func _update_label() -> void:
 		_label.text = _type_name() + " %d/%d" % [workers.size(), job_slots]
 
 
+const TYPE_NAMES := {
+	Type.SAWMILL: "Xưởng gỗ",
+	Type.CHURCH: "Nhà thờ",
+	Type.HOSPITAL: "Bệnh viện",
+	Type.SCHOOL: "Trường học",
+	Type.HOUSE: "Nhà ở",
+	Type.ROAD: "Đường",
+}
+
 func _type_name() -> String:
-	match building_type:
-		Type.SAWMILL: return "Xưởng gỗ"
-		Type.CHURCH: return "Nhà thờ"
-		Type.HOSPITAL: return "Bệnh viện"
-		Type.SCHOOL: return "Trường học"
-		Type.HOUSE: return "Nhà ở"
-		Type.ROAD: return "Đường"
-		_: return "Công trình"
+	return TYPE_NAMES.get(building_type, "Công trình")
 
 
 ## Serialize cho save/load

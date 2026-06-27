@@ -1,6 +1,5 @@
 class_name GrassGen
-## Sinh cụm cỏ lúa đung đưa theo gió, phong cách Ghibli
-## Tránh vùng nước
+## Sinh cụm cỏ lúa đung đưa theo gió — tránh vùng nước
 
 
 static func spawn_clump(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
@@ -19,7 +18,6 @@ static func spawn_clump(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator
 		blade.mesh = mesh
 		blade.position = offset + Vector3(0, height / 2.0, 0)
 		blade.rotation.y = rng.randf() * TAU
-
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(
 			0.45 + rng.randf_range(-0.05, 0.08),
@@ -35,5 +33,4 @@ static func spawn_clump(parent: Node3D, pos: Vector3, rng: RandomNumberGenerator
 
 static func generate(parent: Node3D, count: int, world_size: float, rng: RandomNumberGenerator, water_areas: Array = []) -> void:
 	for i in count:
-		var pos := WaterGen.safe_pos(world_size, rng, water_areas, 1.0)
-		spawn_clump(parent, pos, rng)
+		spawn_clump(parent, WaterGen.safe_pos(world_size, rng, water_areas, 1.0), rng)

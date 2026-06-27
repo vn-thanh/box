@@ -1,6 +1,6 @@
 extends Control
 ## MainMenu — màn hình chính
-## Nút: New Game, Load Game, Settings, Exit (text button, không card bọc)
+## Nút: New Game, Load Game, Settings, Exit
 
 const MAIN_SCENE := "res://scenes/Main.tscn"
 const SETTINGS_PATH := "user://settings.cfg"
@@ -204,22 +204,10 @@ func _make_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	# Text button: nền trong suốt, chỉ hiện text; hover sáng nhẹ
 	var style_normal := StyleBoxFlat.new()
 	style_normal.bg_color = Color(0, 0, 0, 0)
-	style_normal.border_width_left = 0
-	style_normal.border_width_right = 0
-	style_normal.border_width_top = 0
-	style_normal.border_width_bottom = 0
 	var style_hover := StyleBoxFlat.new()
 	style_hover.bg_color = Color(1, 1, 1, 0.08)
-	style_hover.border_width_left = 0
-	style_hover.border_width_right = 0
-	style_hover.border_width_top = 0
-	style_hover.border_width_bottom = 0
 	var style_pressed := StyleBoxFlat.new()
 	style_pressed.bg_color = Color(1, 1, 1, 0.04)
-	style_pressed.border_width_left = 0
-	style_pressed.border_width_right = 0
-	style_pressed.border_width_top = 0
-	style_pressed.border_width_bottom = 0
 	btn.add_theme_stylebox_override("normal", style_normal)
 	btn.add_theme_stylebox_override("hover", style_hover)
 	btn.add_theme_stylebox_override("pressed", style_pressed)
