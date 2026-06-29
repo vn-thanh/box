@@ -564,9 +564,9 @@ func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
 
 	# Camera nhìn building
 	var cam := Camera3D.new()
-	var cam_basis := Basis(Vector3(0.7071, 0, 0.7071), Vector3(0, 1, 0), Vector3(-0.7071, 0, 0.7071))
-	cam.transform = Transform3D(cam_basis, Vector3(6.0, 5.0, 6.0))
 	cam.fov = 35.0
+	cam.transform = Transform3D(Basis.IDENTITY, Vector3(6.0, 5.0, 6.0))
+	cam.look_at_from_position(Vector3(6.0, 5.0, 6.0), Vector3.ZERO, Vector3.UP)
 	vp.add_child(cam)
 
 	# WorldEnvironment — ambient light ấm, flat kiểu 2D Ghibli
