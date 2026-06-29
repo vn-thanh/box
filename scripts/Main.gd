@@ -448,10 +448,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Build mode UI ---
 
-const CELL_SIZE_UI := 68
-const GRID_COLS := 3
-const GRID_ROWS := 2
-const GRID_GAP := 8
+const CELL_SIZE_UI := 80
+const GRID_COLS := 1
+const GRID_ROWS := 6
+const GRID_GAP := 6
 
 func _build_build_ui() -> void:
 	var screen := get_viewport().get_visible_rect().size
@@ -562,11 +562,12 @@ func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vp_container.add_child(vp)
 
-	# Camera nhìn building
+	# Camera nhìn building — iso angle, nhìn vào giữa chiều cao building
 	var cam := Camera3D.new()
-	cam.fov = 35.0
-	cam.transform = Transform3D(Basis.IDENTITY, Vector3(6.0, 5.0, 6.0))
-	cam.look_at_from_position(Vector3(6.0, 5.0, 6.0), Vector3.ZERO, Vector3.UP)
+	cam.fov = 30.0
+	var cam_pos := Vector3(7.0, 6.0, 7.0)
+	cam.transform = Transform3D(Basis.IDENTITY, cam_pos)
+	cam.look_at_from_position(cam_pos, Vector3(0, 1.5, 0), Vector3.UP)
 	vp.add_child(cam)
 
 	# WorldEnvironment — ambient light ấm, flat kiểu 2D Ghibli
