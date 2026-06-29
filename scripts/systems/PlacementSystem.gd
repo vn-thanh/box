@@ -90,6 +90,9 @@ static func confirm_place() -> Building3D:
 	var valid := PathfindingSystem.can_place(pos, _water_areas, _buildings, _ghost.grid_w, _ghost.grid_h)
 	if not valid:
 		return null
+	# Check gold
+	if not ResourceManager.can_afford(_build_type):
+		return null
 	# Tạo building thật
 	var bld := BUILDING_SCENE.instantiate() as Building3D
 	bld.building_type = _build_type
@@ -278,6 +281,10 @@ static func finish_road_drag(mouse_pos: Vector2) -> int:
 		var ok := _can_place_road(tile_pos)
 		if not ok:
 			continue
+		# Check gold for this tile
+		if not ResourceManager.can_afford(_build_type):
+			break
+		ResourceManager.spend(_build_type)
 		var bld := BUILDING_SCENE.instantiate() as Building3D
 		bld.building_type = _build_type
 		_parent.add_child(bld)

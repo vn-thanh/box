@@ -35,7 +35,7 @@ func list_saves() -> Array[Dictionary]:
 	return saves
 
 
-func save_game(world_name: String, world_size: float, npc_data: Array, building_data: Array = []) -> bool:
+func save_game(world_name: String, world_size: float, npc_data: Array, building_data: Array = [], extra: Dictionary = {}) -> bool:
 	var safe_name := _sanitize_name(world_name)
 	if safe_name.is_empty():
 		safe_name = "World"
@@ -49,6 +49,9 @@ func save_game(world_name: String, world_size: float, npc_data: Array, building_
 		"npcs": npc_data,
 		"buildings": building_data,
 	}
+	# Merge extra data (resources, day_count, etc.)
+	for key in extra:
+		data[key] = extra[key]
 
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if not file:

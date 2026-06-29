@@ -37,6 +37,18 @@ const BUILD_DEFS: Array = [
 @onready var bld_workers_label: Label = $CanvasLayer/BuildingInfoPanel/BldWorkersLabel
 @onready var bld_delete_btn: Button = $CanvasLayer/BuildingInfoPanel/DeleteButton
 
+# Resource HUD
+var _hud_gold_lbl: Label
+var _hud_wood_lbl: Label
+var _hud_food_lbl: Label
+var _hud_day_lbl: Label
+
+# Day cycle
+var _day_time: float = 0.0  # 0-1 (0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk)
+const DAY_DURATION: float = 120.0  # seconds per full day
+var _day_count: int = 1
+var _last_day_tick: int = 0  # track whole-day boundaries for production
+
 var _hovered_npc: NPC3D = null
 var _selected_npc: NPC3D = null
 var _portrait_npc: NPC3D = null
@@ -116,6 +128,14 @@ func _ready() -> void:
 
 	# Build mode UI — built in code
 	_build_build_ui()
+	_build_resource_hud()
+
+	# Reset resources for new game, or load from save
+	if _is_loaded_game:
+		ResourceManager.load_from(_load_data.get("resources", {}))
+		_day_count = int(_load_data.get("day_count", 1))
+	else:
+		ResourceManager.reset()
 
 	# Connect delete building button
 	bld_delete_btn.pressed.connect(_delete_selected_building)
@@ -192,6 +212,15 @@ func _load_buildings() -> void:
 
 
 func _process(delta: float) -> void:
+	# Day/night cycle
+	_day_time += delta / DAY_DURATION
+	if _day_time >= 1.0:
+		_day_time -= 1.0
+		_day_count += 1
+		_on_new_day()
+	_update_day_night()
+	_update_hud()
+
 	# WASD camera movement — screen-relative directions
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var forward := -camera.global_transform.basis.z
@@ -370,12 +399,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			var bld := PlacementSystem.confirm_place()
 			if bld:
 				print("[Build] Placed %s at %s" % [bld.get_type_name(), bld.global_position])
+				ResourceManager.spend(bld.building_type)
 				_auto_assign_workers()
-		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-			PlacementSystem.cancel_road_drag()
-			_cancel_build()
-		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
-			PlacementSystem.rotate_ghost()
+			if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+				PlacementSystem.cancel_road_drag()
+				_cancel_build()
+			if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+				PlacementSystem.rotate_ghost()
 		return
 
 	# Click to select NPC (left button)
@@ -621,7 +651,7 @@ func _make_build_cell(def: Dictionary, col: int, row: int) -> Control:
 
 func _on_cell_hover(label_text: String, cell: Control) -> void:
 	_tooltip.text = label_text
-	_tooltip.size = Vector2(100, 20)
+	_tooltip.size = Vector2(120, 20)
 	var gp := cell.global_position
 	_tooltip.position = Vector2(gp.x, gp.y - 22)
 	_tooltip.visible = true
@@ -742,7 +772,11 @@ func _save_current_game() -> void:
 		var b := bld as Building3D
 		if b:
 			building_data.append(b.to_dict())
-	var ok := SaveSystem.save_game(world_name, world_size, npc_data, building_data)
+	var save_extra := {
+		"resources": ResourceManager.to_dict(),
+		"day_count": _day_count,
+	}
+	var ok := SaveSystem.save_game(world_name, world_size, npc_data, building_data, save_extra)
 	if ok:
 		print("[Save] Saved world '%s' (%d NPCs, %d buildings)" % [world_name, npc_data.size(), building_data.size()])
 	else:
@@ -752,3 +786,117 @@ func _save_current_game() -> void:
 func _save_and_quit_to_menu() -> void:
 	_save_current_game()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+
+
+# ============================================================
+# RESOURCE HUD
+# ============================================================
+
+func _build_resource_hud() -> void:
+	var canvas := $CanvasLayer
+	var screen := get_viewport().get_visible_rect().size
+
+	# Background bar
+	var bar := Panel.new()
+	bar.size = Vector2(220, 28)
+	bar.position = Vector2(screen.x / 2 - 110, 8)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.1, 0.14, 0.7)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	bar.add_theme_stylebox_override("panel", style)
+	canvas.add_child(bar)
+
+	# Day label (left)
+	_hud_day_lbl = Label.new()
+	_hud_day_lbl.text = "Day 1"
+	_hud_day_lbl.position = Vector2(8, 4)
+	_hud_day_lbl.size = Vector2(50, 20)
+	_hud_day_lbl.add_theme_font_size_override("font_size", 14)
+	_hud_day_lbl.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0, 1))
+	bar.add_child(_hud_day_lbl)
+
+	# Gold label
+	_hud_gold_lbl = Label.new()
+	_hud_gold_lbl.text = "💰 500"
+	_hud_gold_lbl.position = Vector2(60, 4)
+	_hud_gold_lbl.size = Vector2(55, 20)
+	_hud_gold_lbl.add_theme_font_size_override("font_size", 13)
+	_hud_gold_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 1))
+	bar.add_child(_hud_gold_lbl)
+
+	# Wood label
+	_hud_wood_lbl = Label.new()
+	_hud_wood_lbl.text = "🪵 50"
+	_hud_wood_lbl.position = Vector2(115, 4)
+	_hud_wood_lbl.size = Vector2(50, 20)
+	_hud_wood_lbl.add_theme_font_size_override("font_size", 13)
+	_hud_wood_lbl.add_theme_color_override("font_color", Color(0.8, 0.55, 0.3, 1))
+	bar.add_child(_hud_wood_lbl)
+
+	# Food label
+	_hud_food_lbl = Label.new()
+	_hud_food_lbl.text = "🌾 50"
+	_hud_food_lbl.position = Vector2(168, 4)
+	_hud_food_lbl.size = Vector2(50, 20)
+	_hud_food_lbl.add_theme_font_size_override("font_size", 13)
+	_hud_food_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 0.4, 1))
+	bar.add_child(_hud_food_lbl)
+
+
+func _update_hud() -> void:
+	if _hud_gold_lbl:
+		_hud_gold_lbl.text = "💰 %d" % ResourceManager.get_gold()
+	if _hud_wood_lbl:
+		_hud_wood_lbl.text = "🪵 %d" % ResourceManager.get_wood()
+	if _hud_food_lbl:
+		_hud_food_lbl.text = "🌾 %d" % ResourceManager.get_food()
+	if _hud_day_lbl:
+		_hud_day_lbl.text = "Day %d" % _day_count
+
+
+# ============================================================
+# DAY/NIGHT CYCLE
+# ============================================================
+
+func _update_day_night() -> void:
+	if not sun or not env:
+		return
+	# Sun angle: _day_time 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk
+	# Map to rotation: noon = sun overhead, midnight = sun below
+	var sun_angle := (_day_time - 0.25) * TAU  # 0.25 → 0, 0.5 → PI/2
+	sun.rotation.x = -sun_angle * 0.5 - 0.3
+	# Light energy: bright at noon, dark at midnight
+	var day_factor := clampf(cos((_day_time - 0.5) * TAU), 0.0, 1.0)
+	sun.light_energy = lerpf(0.1, 1.2, day_factor)
+	sun.visible = day_factor > 0.05
+	# Ambient light color: warm at day, cool at night
+	var day_col := Color(1.0, 0.95, 0.8)
+	var night_col := Color(0.3, 0.35, 0.5)
+	env.ambient_light_color = night_col.lerp(day_col, day_factor)
+	env.ambient_light_energy = lerpf(0.2, 0.5, day_factor)
+	# Sky color
+	var day_sky := Color(0.65, 0.8, 0.95)
+	var night_sky := Color(0.05, 0.08, 0.15)
+	env.background_color = night_sky.lerp(day_sky, day_factor)
+	# Fog color
+	var day_fog := Color(0.85, 0.9, 1.0)
+	var night_fog := Color(0.1, 0.12, 0.18)
+	env.fog_light_color = night_fog.lerp(day_fog, day_factor)
+
+
+## Gọi khi sang ngày mới — sinh tài nguyên, tiêu hao food
+func _on_new_day() -> void:
+	var npcs: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			npcs.append(child)
+	ResourceManager.produce(npcs)
+	ResourceManager.consume_food(npcs.size())
+	print("[Day %d] Resources: gold=%d wood=%d food=%d" % [
+		_day_count, ResourceManager.get_gold(), ResourceManager.get_wood(), ResourceManager.get_food()
+	])
