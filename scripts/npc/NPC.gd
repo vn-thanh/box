@@ -62,7 +62,7 @@ var _speed: float = 2.0
 # Pathfinding (job commute)
 var _path: Array = []
 var _path_idx: int = 0
-var _commute_state: int = 0  # 0=idle, 1=going to work, 2=working, 3=returning
+var _commute_state: int = 0  # 0=idle, 1=to work, 2=entering, 3=working, 4=exiting, 5=returning
 var _work_timer: float = 0.0
 var _last_home_pos: Vector3 = Vector3.ZERO
 const WORK_DURATION: float = 8.0
@@ -264,7 +264,7 @@ func return_home() -> void:
 	# Lưu vị trí "nhà" khi bắt đầu đi làm — dùng last_home_pos
 	_path = PathfindingSystem.find_path(global_position, _last_home_pos)
 	_path_idx = 0
-	_commute_state = 3
+	_commute_state = 5
 	_is_moving = true
 
 
@@ -273,17 +273,33 @@ func _commute_update(delta: float) -> void:
 	match _commute_state:
 		1:  # going to work
 			if _follow_path(delta):
+				# Đến cửa → đi vào trong (giấu body)
 				_commute_state = 2
-				_work_timer = WORK_DURATION
+				_work_timer = 0.0
 				_is_moving = false
 				velocity = Vector3.ZERO
-		2:  # working
+				visible = false
+		2:  # entering — đợi 1s rồi bắt đầu làm việc
+			_work_timer += delta
+			velocity = Vector3.ZERO
+			if _work_timer >= 1.0:
+				_commute_state = 3
+				_work_timer = WORK_DURATION
+		3:  # working
 			_work_timer -= delta
 			velocity = Vector3.ZERO
 			_is_moving = false
 			if _work_timer <= 0:
+				# Hoàn thành → đi ra khỏi công trình
+				visible = true
+				_commute_state = 4
+				_work_timer = 0.0
+		4:  # exiting — đợi 1s rồi đi về nhà
+			_work_timer += delta
+			velocity = Vector3.ZERO
+			if _work_timer >= 1.0:
 				return_home()
-		3:  # returning
+		5:  # returning
 			if _follow_path(delta):
 				_commute_state = 0
 				_is_moving = false
