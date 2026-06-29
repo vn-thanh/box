@@ -35,6 +35,7 @@ const BUILD_DEFS: Array = [
 @onready var bld_name_label: Label = $CanvasLayer/BuildingInfoPanel/BldNameLabel
 @onready var bld_slots_label: Label = $CanvasLayer/BuildingInfoPanel/BldSlotsLabel
 @onready var bld_workers_label: Label = $CanvasLayer/BuildingInfoPanel/BldWorkersLabel
+@onready var bld_delete_btn: Button = $CanvasLayer/BuildingInfoPanel/DeleteButton
 
 var _hovered_npc: NPC3D = null
 var _selected_npc: NPC3D = null
@@ -115,6 +116,9 @@ func _ready() -> void:
 
 	# Build mode UI — built in code
 	_build_build_ui()
+
+	# Connect delete building button
+	bld_delete_btn.pressed.connect(_delete_selected_building)
 
 
 func _spawn_npcs() -> void:
@@ -415,6 +419,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_A:
 		_auto_assign_workers()
 
+	# Delete → xóa công trình đang chọn
+	if event is InputEventKey and event.pressed and event.keycode == KEY_DELETE:
+		_delete_selected_building()
+
 	# Scroll wheel zoom
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -691,6 +699,28 @@ func _show_building_info(bld: Building3D) -> void:
 	bld_workers_label.text = "Danh sách thợ:\n" + "\n".join(names) if names.size() > 0 else "Chưa có thợ"
 	bld_info_panel.visible = true
 	_hide_npc_info()
+
+
+func _delete_selected_building() -> void:
+	if not _selected_building:
+		return
+	var bld := _selected_building
+	# Unassign tất cả worker → NPC quay về wander
+	for worker in bld.workers:
+		worker.workplace = null
+		worker.job = NPC3D.JobType.NONE
+		worker._commute_state = 0
+	bld.workers.clear()
+	# Xóa khỏi _buildings array
+	_buildings.erase(bld)
+	# Re-init pathfinding grid (unblock cells)
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
+	PathfindingSystem.init_grid(world_size, water_areas, _buildings)
+	# Free node
+	bld.queue_free()
+	_selected_building = null
+	bld_info_panel.visible = false
+	print("[Build] Deleted building at %s" % bld.global_position)
 
 
 func _save_current_game() -> void:

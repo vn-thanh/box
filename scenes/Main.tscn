@@ -160,7 +160,7 @@ visible = false
 offset_left = 16.0
 offset_top = 394.0
 offset_right = 316.0
-offset_bottom = 484.0
+offset_bottom = 534.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_1")
 
 [node name="BldNameLabel" type="Label" parent="CanvasLayer/BuildingInfoPanel"]
@@ -187,3 +187,15 @@ offset_bottom = 100.0
 theme_override_font_sizes/font_size = 13
 text = "Danh sách thợ:"
 autowrap_mode = 3
+
+[node name="DeleteButton" type="Button" parent="CanvasLayer/BuildingInfoPanel"]
+offset_left = 10.0
+offset_top = 108.0
+offset_right = 290.0
+offset_bottom = 138.0
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.6, 0.6, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.3, 0.3, 1)
+theme_override_colors/font_focus_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "Xóa công trình"
