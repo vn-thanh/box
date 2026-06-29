@@ -897,7 +897,7 @@ func _update_day_night() -> void:
 	env.fog_light_color = night_fog.lerp(day_fog, day_factor)
 
 
-## Gọi khi sang ngày mới — sinh tài nguyên, tiêu hao food
+## Gọi khi sang ngày mới — sinh tài nguyên, tiêu hao food, population growth
 func _on_new_day() -> void:
 	var npcs: Array = []
 	for child in get_children():
@@ -905,9 +905,57 @@ func _on_new_day() -> void:
 			npcs.append(child)
 	ResourceManager.produce(npcs)
 	ResourceManager.consume_food(npcs.size())
-	print("[Day %d] Resources: gold=%d wood=%d food=%d" % [
-		_day_count, ResourceManager.get_gold(), ResourceManager.get_wood(), ResourceManager.get_food()
+	_population_update(npcs)
+	print("[Day %d] Resources: gold=%d wood=%d food=%d | Pop: %d" % [
+		_day_count, ResourceManager.get_gold(), ResourceManager.get_wood(), ResourceManager.get_food(), npcs.size()
 	])
+
+
+## Population growth: aging, death, birth
+func _population_update(npcs: Array) -> void:
+	# 1. Aging + death
+	var to_remove: Array = []
+	for child in npcs:
+		var npc := child as NPC3D
+		if not npc:
+			continue
+		npc.age += 1
+		# Death: probability increases with old age
+		if npc.age > 75:
+			if randf() < (npc.age - 75) * 0.05:
+				to_remove.append(npc)
+		# Starvation: no food → NPC dies
+		if ResourceManager.get_food() <= 0 and randf() < 0.1:
+			to_remove.append(npc)
+	for npc in to_remove:
+		var n := npc as NPC3D
+		if n.workplace:
+			n.workplace.workers.erase(n)
+			n.workplace._update_label()
+		n.queue_free()
+		print("[Pop] %s died at age %d" % [n.npc_name, n.age])
+
+	# 2. Birth: count houses, count adults, create new NPC if capacity
+	var house_count := 0
+	for bld in _buildings:
+		var b := bld as Building3D
+		if b and b.building_type == Building3D.Type.HOUSE:
+			house_count += 1
+	var current_pop := 0
+	var adult_pairs := 0
+	var adults: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			current_pop += 1
+			var npc := child as NPC3D
+			if npc.age >= 18 and npc.age <= 50:
+				adults.append(npc)
+	# Each pair of adults in a house can produce a child
+	# Population cap = house_count * 4 (family of 4 per house)
+	var pop_cap := house_count * 4 + 4  # +4 base (homeless)
+	adult_pairs = adults.size() / 2
+	if current_pop < pop_cap and adult_pairs > 0 and randf() < 0.3:
+		_spawn_child(npcs)
 
 
 ## Buổi sáng — NPC có workplace đi làm
@@ -916,6 +964,31 @@ func _npcs_go_to_work() -> void:
 		var npc := child as NPC3D
 		if npc and npc.workplace and npc._commute_state == 0:
 			npc.go_to_work()
+
+
+## Sinh NPC mới (em bé) gần adult ngẫu nhiên
+func _spawn_child(npcs: Array) -> void:
+	# Tìm adult ngẫu nhiên làm "cha mẹ"
+	var adults: Array = []
+	for child in get_children():
+		if child is NPC3D:
+			var npc := child as NPC3D
+			if npc.age >= 18 and npc.age <= 50:
+				adults.append(npc)
+	if adults.is_empty():
+		return
+	var parent := adults[randi() % adults.size()] as NPC3D
+	var npc := npc_scene.instantiate() as NPC3D
+	npc.age = 0
+	npc.gender = "male" if randf() < 0.5 else "female"
+	add_child(npc)
+	# Spawn gần parent
+	var offset := Vector3(randf_range(-3, 3), 0, randf_range(-3, 3))
+	npc.global_position = parent.global_position + offset
+	npc.world_bounds = world_size * 0.45
+	var water_areas: Array = world_gen.get_water_areas() if world_gen else []
+	npc.water_areas = water_areas
+	print("[Pop] New child born near %s" % parent.npc_name)
 
 
 ## Buổi tối — NPC đang làm việc thì về nhà
