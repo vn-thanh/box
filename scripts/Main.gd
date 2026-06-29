@@ -448,10 +448,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Build mode UI ---
 
-const CELL_SIZE_UI := 80
+const CELL_SIZE_UI := 53
 const GRID_COLS := 1
 const GRID_ROWS := 6
-const GRID_GAP := 6
+const GRID_GAP := 4
 
 func _build_build_ui() -> void:
 	var screen := get_viewport().get_visible_rect().size
