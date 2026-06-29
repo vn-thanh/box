@@ -213,6 +213,7 @@ func _load_buildings() -> void:
 
 func _process(delta: float) -> void:
 	# Day/night cycle
+	var prev_day_time := _day_time
 	_day_time += delta / DAY_DURATION
 	if _day_time >= 1.0:
 		_day_time -= 1.0
@@ -220,6 +221,13 @@ func _process(delta: float) -> void:
 		_on_new_day()
 	_update_day_night()
 	_update_hud()
+
+	# NPC schedule: dawn → go to work, dusk → return home
+	# 0.25 = dawn (morning), 0.75 = dusk (evening)
+	if prev_day_time < 0.25 and _day_time >= 0.25:
+		_npcs_go_to_work()
+	if prev_day_time < 0.75 and _day_time >= 0.75:
+		_npcs_return_home()
 
 	# WASD camera movement — screen-relative directions
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
@@ -900,3 +908,19 @@ func _on_new_day() -> void:
 	print("[Day %d] Resources: gold=%d wood=%d food=%d" % [
 		_day_count, ResourceManager.get_gold(), ResourceManager.get_wood(), ResourceManager.get_food()
 	])
+
+
+## Buổi sáng — NPC có workplace đi làm
+func _npcs_go_to_work() -> void:
+	for child in get_children():
+		var npc := child as NPC3D
+		if npc and npc.workplace and npc._commute_state == 0:
+			npc.go_to_work()
+
+
+## Buổi tối — NPC đang làm việc thì về nhà
+func _npcs_return_home() -> void:
+	for child in get_children():
+		var npc := child as NPC3D
+		if npc and npc.workplace and npc._commute_state > 0 and npc._commute_state < 5:
+			npc.return_home()
